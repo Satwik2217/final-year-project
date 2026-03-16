@@ -173,7 +173,7 @@ body {
 /* login / sign up part starts here */
 
 .hidden{
-  display: none;
+  display: none !important;
 }
 
 nav {
@@ -182,12 +182,85 @@ nav {
     left: 0;
     z-index: 9999;
 }
+nav button {
+    background: transparent;
+    border: 1px solid rgba(0, 150, 255, 0.5);
+    color: white;
+    padding: 8px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+nav button:hover {
+    background: rgba(0, 150, 255, 0.2);
+    box-shadow: 0 0 10px rgba(0, 150, 255, 0.4);
+}
 .authentication {
     position: fixed;
-    top: 30%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+    top: 20%;
+    left: 15%;
+    transform: translate(-50%, -30%);
     z-index: 9999;
+}
+.login, .signup {
+    width: 380px;
+    padding: 35px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(0, 150, 255, 0.3);
+    border-radius: 16px;
+    
+}
+.login input, .signup input {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(0,150,255,0.4);
+    border-radius: 8px;
+    padding: 12px;
+    color: white;
+    outline: none;
+}
+.login h2, .signup h2 {
+    color: white;
+    font-size: 24px;
+    margin-bottom: 5px;
+}
+.login p, .signup p {
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    margin-bottom: 10px;
+}
+.login button[type="submit"], 
+.signup button[type="submit"] {
+    background: linear-gradient(135deg, #0066ff, #0033cc);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.3s ease;
+}
+.login button[type="submit"]:hover,
+.signup button[type="submit"]:hover {
+    box-shadow: 0 0 20px rgba(0, 100, 255, 0.6);
+    transform: scale(1.02);
+}
+#closeLogin, #closeSignup {
+    position: absolute;
+    top: 12px;
+    right: 15px;
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    font-size: 18px;
+    cursor: pointer;
+}
+@keyframes slideIn {
+    from { opacity: 0; transform: translate(-50%, -60%); }
+    to   { opacity: 1; transform: translate(-50%, -50%); }
 }
 
 /* login / sign up part ends here  */

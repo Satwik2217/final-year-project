@@ -32,18 +32,26 @@
     <nav>
         <button id="loginBtn"> login </button>
         <button id="signupBtn"> sign up </button>
+        <button id="logoutBtn"> logout </button>
     </nav>
     <div class="authentication">
         <form class="login hidden" id="loginForm">
+            <h2>Welcome Back</h2>
+            <p>Login to your account</p>
             <input type="userid" placeholder="Enter user id" name="userid">
             <input type="password" placeholder="Enter password" name="password">
             <button type="submit" name="submit">Submit</button>
+            <button type="button" id="closeLogin">Close</button>
+
         </form>
         <form class="signup hidden" id="signupForm">
+            <h2>Create Account</h2>
+            <p>Join us today</p>
             <input type="text" name="username" placeholder="Enter your username">
-            <input type="userid" placeholder="Enter user id" name="userid">
+            <input type="userid" placeholder="Enter your email id" name="emailid">
             <input type="password" placeholder="Enter password" name="password">
             <button type="submit" name="submit">Submit</button>
+            <button type="button" id="closeSignup">Close</button>
         </form>
     </div>
 
