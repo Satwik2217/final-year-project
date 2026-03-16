@@ -169,6 +169,29 @@ body {
     }
 }
 
+/* now this is the part of login and sign up for the project */
+/* login / sign up part starts here */
+
+.hidden{
+  display: none;
+}
+
+nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+}
+.authentication {
+    position: fixed;
+    top: 30%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+}
+
+/* login / sign up part ends here  */
+
 #webcam{
     position: fixed;
     top: 20px;
