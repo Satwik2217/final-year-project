@@ -29,10 +29,12 @@
 </head>
 
 <body>
-    <nav>
-        <button id="loginBtn"> login </button>
-        <button id="signupBtn"> sign up </button>
-        <button id="logoutBtn"> logout </button>
+    <button id="navbarIcon"><i class="bi bi-list"></i></button>
+    <nav id="navbar" class="hidden">
+        <button id="loginBtn"> login </button><br>
+        <button id="signupBtn"> sign up </button><br>
+        <button type="button" id="closenavbar">Close</button>
+        
     </nav>
     <div class="authentication">
         <form class="login hidden" id="loginForm">
@@ -56,7 +58,7 @@
     </div>
 
     <div class="container">
-
+        <!-- <button id="logoutBtn"> logout </button> -->
         <section id="Oval" class="mb-4">
 
             <div class="row">
