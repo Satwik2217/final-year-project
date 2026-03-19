@@ -81,197 +81,224 @@ body {
   }
 }
 
-#TextInput{
-    background-color: #181818a8;
-    border-color: blue;
-    box-shadow: 0 0 20px rgb(25, 0, 255) , inset 0 0 0px rgb(25 , 0 , 255);
-    border-radius: 8px;
-    color: white;
-    padding: 3px 0px 3px 20px ;
-    margin: 0px 20%;
+#TextInput {
+  background-color: #181818a8;
+  border-color: blue;
+  box-shadow:
+    0 0 20px rgb(25, 0, 255),
+    inset 0 0 0px rgb(25, 0, 255);
+  border-radius: 8px;
+  color: white;
+  padding: 3px 0px 3px 20px;
+  margin: 0px 20%;
 }
 
-.input-field{
-    background-color: transparent;
-    border: none;
-    width: 95%;
-    outline: none;
-    color: white;
-    font-family: cursive;
+.input-field {
+  background-color: transparent;
+  border: none;
+  width: 95%;
+  outline: none;
+  color: white;
+  font-family: cursive;
 }
 
-.glow-on-hover{
-    width: 35px;
-    height: 35px;
-    border: none;
-    outline: none;
-    color: #fff;
-    background: #111;
-    cursor: pointer;
-    position: relative;
-    z-index: 0;
-    border-radius: 10px;
-    padding: 0px;
-    margin-left: 10px;
+.glow-on-hover {
+  width: 35px;
+  height: 35px;
+  border: none;
+  outline: none;
+  color: #fff;
+  background: #111;
+  cursor: pointer;
+  position: relative;
+  z-index: 0;
+  border-radius: 10px;
+  padding: 0px;
+  margin-left: 10px;
 }
 
-.glow-on-hover:before{
-    content: '';
-    background: linear-gradient(45deg , #ff0000 , #ff7300 , #fffb00 , #48ff00 , #00ffd5, #002bff , #7a00ff , #ff00c8 , #ff0000);
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    background-size: 400%;
-    z-index: -1;
-    filter: blur(5px);
-    width: calc(100% + 4px);
-    height: calc(100% + 4px);
-    animation: glowing 20s linear infinite;
-    opacity: 0;
-    transition: opacity .3s ease-in-out;
-    border-radius: 10px;
+.glow-on-hover:before {
+  content: "";
+  background: linear-gradient(
+    45deg,
+    #ff0000,
+    #ff7300,
+    #fffb00,
+    #48ff00,
+    #00ffd5,
+    #002bff,
+    #7a00ff,
+    #ff00c8,
+    #ff0000
+  );
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  background-size: 400%;
+  z-index: -1;
+  filter: blur(5px);
+  width: calc(100% + 4px);
+  height: calc(100% + 4px);
+  animation: glowing 20s linear infinite;
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  border-radius: 10px;
 }
 
-.glow-on-hover:active{
-    color: #181818a8;
+.glow-on-hover:active {
+  color: #181818a8;
 }
 
-.glow-on-hover:active:after{
-    background: transparent;
+.glow-on-hover:active:after {
+  background: transparent;
 }
 
-.glow-on-hover:hover:before{
-    opacity: 1;
+.glow-on-hover:hover:before {
+  opacity: 1;
 }
 
-.glow-on-hover:after{
-    z-index: -1 ;
-    content: '' ;
-    position : absolute ;
-    width: 100%;
-    height: 100%;
-    background: #111;
-    left: 0;
-    top: 0;
-    border-radius: 10px;
+.glow-on-hover:after {
+  z-index: -1;
+  content: "";
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  background: #111;
+  left: 0;
+  top: 0;
+  border-radius: 10px;
 }
 
-@keyframes glowing{
-    0%{
-        background-position: 0 0 ;
-    }
+@keyframes glowing {
+  0% {
+    background-position: 0 0;
+  }
 
-    50%{
-        background-position: 400% 0;
-    }
-    100%{
-        background-position: 0 0 ;
-    }
+  50% {
+    background-position: 400% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }
 
 /* now this is the part of login and sign up for the project */
 /* login / sign up part starts here */
 
-.hidden{
+.hidden {
   display: none !important;
 }
 
+#navbarIcon {
+  position: fixed;
+}
+
 nav {
-    position: fixed;
-    top: 0;
-    left: 0;
-    z-index: 9999;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
 }
 nav button {
-    background: transparent;
-    border: 1px solid rgba(0, 150, 255, 0.5);
-    color: white;
-    padding: 8px 18px;
-    border-radius: 20px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+  background: transparent;
+  border: 1px solid rgba(0, 150, 255, 0.5);
+  color: white;
+  padding: 8px 18px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 nav button:hover {
-    background: rgba(0, 150, 255, 0.2);
-    box-shadow: 0 0 10px rgba(0, 150, 255, 0.4);
+  background: rgba(0, 150, 255, 0.2);
+  box-shadow: 0 0 10px rgba(0, 150, 255, 0.4);
 }
 .authentication {
-    position: fixed;
-    top: 20%;
-    left: 15%;
-    transform: translate(-50%, -30%);
-    z-index: 9999;
+  position: fixed;
+  top: 20%;
+  left: 15%;
+  transform: translate(-50%, -30%);
+  z-index: 9999;
 }
-.login, .signup {
-    width: 380px;
-    padding: 35px;
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(0, 150, 255, 0.3);
-    border-radius: 16px;
-    
+.login,
+.signup {
+  width: 380px;
+  padding: 35px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 150, 255, 0.3);
+  border-radius: 16px;
 }
-.login input, .signup input {
-    background: rgba(255,255,255,0.07);
-    border: 1px solid rgba(0,150,255,0.4);
-    border-radius: 8px;
-    padding: 12px;
-    color: white;
-    outline: none;
+.login input,
+.signup input {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(0, 150, 255, 0.4);
+  border-radius: 8px;
+  padding: 12px;
+  color: white;
+  outline: none;
 }
-.login h2, .signup h2 {
-    color: white;
-    font-size: 24px;
-    margin-bottom: 5px;
+.login h2,
+.signup h2 {
+  color: white;
+  font-size: 24px;
+  margin-bottom: 5px;
 }
-.login p, .signup p {
-    color: rgba(255,255,255,0.5);
-    font-size: 13px;
-    margin-bottom: 10px;
+.login p,
+.signup p {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 13px;
+  margin-bottom: 10px;
 }
-.login button[type="submit"], 
+.login button[type="submit"],
 .signup button[type="submit"] {
-    background: linear-gradient(135deg, #0066ff, #0033cc);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 12px;
-    cursor: pointer;
-    font-size: 15px;
-    transition: all 0.3s ease;
+  background: linear-gradient(135deg, #0066ff, #0033cc);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  font-size: 15px;
+  transition: all 0.3s ease;
 }
 .login button[type="submit"]:hover,
 .signup button[type="submit"]:hover {
-    box-shadow: 0 0 20px rgba(0, 100, 255, 0.6);
-    transform: scale(1.02);
+  box-shadow: 0 0 20px rgba(0, 100, 255, 0.6);
+  transform: scale(1.02);
 }
-#closeLogin, #closeSignup {
-    position: absolute;
-    top: 12px;
-    right: 15px;
-    background: transparent;
-    border: none;
-    color: rgba(255,255,255,0.6);
-    font-size: 18px;
-    cursor: pointer;
+#closeLogin,
+#closeSignup {
+  position: absolute;
+  top: 12px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 18px;
+  cursor: pointer;
 }
 @keyframes slideIn {
-    from { opacity: 0; transform: translate(-50%, -60%); }
-    to   { opacity: 1; transform: translate(-50%, -50%); }
+  from {
+    opacity: 0;
+    transform: translate(-50%, -60%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
 }
 
 /* login / sign up part ends here  */
 
-#webcam{
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    width: 200px;
-    border-radius: 12px;
-    border: 2px solid #00f7ff;
-    box-shadow: 0 0 15px #00f7ff;
-    z-index: 1000;
+#webcam {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 200px;
+  border-radius: 12px;
+  border: 2px solid #00f7ff;
+  box-shadow: 0 0 15px #00f7ff;
+  z-index: 1000;
 }
