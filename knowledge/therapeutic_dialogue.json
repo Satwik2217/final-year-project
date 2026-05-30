@@ -19,9 +19,33 @@
   },
   {
     "id": "opener_returning",
-    "type": "opener",
+    "type": "continue",
     "technique": "Longitudinal Memory",
-    "content": "Welcome back. I've been thinking about our earlier conversations — it helps me understand you better over time."
+    "content": "Picking up from what you said earlier —"
+  },
+  {
+    "id": "continue_1",
+    "type": "continue",
+    "technique": "Supportive Listening",
+    "content": "Yeah, that makes sense."
+  },
+  {
+    "id": "continue_2",
+    "type": "continue",
+    "technique": "Supportive Listening",
+    "content": "I hear you — go on."
+  },
+  {
+    "id": "continue_3",
+    "type": "continue",
+    "technique": "Supportive Listening",
+    "content": "That sounds really tough."
+  },
+  {
+    "id": "continue_4",
+    "type": "continue",
+    "technique": "Supportive Listening",
+    "content": "Mm, I follow."
   },
   {
     "id": "transition_cbt",

@@ -25,6 +25,7 @@ export default function Login() {
         localStorage.setItem('token', data.token);
         localStorage.setItem('userId', data.user.id);
         localStorage.setItem('userName', data.user.name);
+        sessionStorage.setItem('neurowell_pending_greeting', 'true');
         navigate('/dashboard');
       } else {
         setError(data.message || 'Invalid credentials');

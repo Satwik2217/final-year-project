@@ -4,6 +4,13 @@ from functools import lru_cache
 
 from services.rag_engine import get_embedding_model
 
+GREETING_PATTERNS = re.compile(
+    r"^(hi|hello|hey|good morning|good evening|good afternoon|yo|sup)[\s!.,?]*$",
+    re.I,
+)
+
+THANKS_PATTERNS = re.compile(r"^(thanks|thank you|thx|ty)[\s!.,?]*$", re.I)
+
 
 def _load_dialogue_snippets() -> list[dict]:
     import json
@@ -75,46 +82,15 @@ def _retrieve_dialogue(query: str, dialogue_type: str, n: int = 1) -> list[str]:
     return contents
 
 
-def _mirror_user_words(text: str) -> str:
-    cleaned = text.strip().rstrip(".")
-    if len(cleaned) < 8:
-        return f"When you say \"{cleaned},\" I can sense there's something meaningful behind that."
-    if len(cleaned) > 120:
-        cleaned = cleaned[:117] + "..."
-    return f"When you share something like \"{cleaned},\" it tells me this is really affecting you."
-
-
-def _personalize(text: str, user_name: str | None) -> str:
-    if not user_name or user_name.lower() in {"user", "guest"}:
-        return text
-    if text.startswith("Welcome back"):
-        return text.replace("Welcome back", f"Welcome back, {user_name}")
-    return text
-
-
-def _reference_history(conversation_messages: list[dict], emotion_history: list[dict]) -> str:
-    if conversation_messages and len(conversation_messages) >= 2:
-        prior = [m for m in conversation_messages if m.get("sender") == "user"][-2:]
-        if len(prior) >= 1 and len(conversation_messages) >= 4:
-            return "I've been following what you've shared in this conversation, and I want you to know I'm paying attention — not just to your words, but to how you're feeling over time."
-
-    if emotion_history and len(emotion_history) >= 2:
-        moods = [e.get("textEmotion") for e in emotion_history[-3:] if e.get("textEmotion")]
-        unique = [m for m in dict.fromkeys(moods) if m and m != "pending"]
-        if len(unique) >= 2:
-            return f"I remember from our recent sessions that your emotional landscape has shifted — you've moved through {', '.join(unique).lower()}. That continuity matters."
-
-    return ""
-
-
 def _humanize_clinical_content(content: str) -> str:
     replacements = [
-        ("Ask yourself:", "You might gently ask yourself:"),
-        ("Try replacing", "Maybe try replacing"),
-        ("Write down", "If it helps, jot down"),
-        ("List the facts", "It can help to list the facts"),
-        ("Pause and ask:", "Take a breath, and consider:"),
-        ("Rate the situation", "If you had to rate this moment"),
+        ("Ask yourself:", "Maybe ask yourself:"),
+        ("Try replacing", "You could try replacing"),
+        ("Write down", "If it helps, note"),
+        ("List the facts", "Look at the facts"),
+        ("Pause and ask:", "Take a breath —"),
+        ("Rate the situation", "On a scale of 1–10,"),
+        ("Thank you for sharing", "I hear you"),
     ]
     result = content
     for old, new in replacements:
@@ -122,11 +98,154 @@ def _humanize_clinical_content(content: str) -> str:
     return result
 
 
-def _extract_key_phrase(text: str) -> str:
-    words = re.findall(r"\b[\w']+\b", text.lower())
-    emotional = {"sad", "anxious", "stressed", "lonely", "worried", "overwhelmed", "tired", "scared", "fine", "okay"}
-    found = [w for w in words if w in emotional]
-    return found[0] if found else ""
+def _conversation_stats(conversation_messages: list[dict]) -> dict:
+    user_msgs = [m for m in conversation_messages if m.get("sender") in ("user", "User")]
+    ai_msgs = [m for m in conversation_messages if m.get("sender") in ("ai", "bot", "AI")]
+    return {
+        "user_count": len(user_msgs),
+        "ai_count": len(ai_msgs),
+        "last_user": user_msgs[-1]["text"] if user_msgs else None,
+        "last_ai": ai_msgs[-1]["text"] if ai_msgs else None,
+        "is_first_user_message": len(user_msgs) == 0,
+    }
+
+
+def _is_small_talk(text: str) -> str | None:
+    t = text.strip()
+    if GREETING_PATTERNS.match(t):
+        return "greeting"
+    if THANKS_PATTERNS.match(t):
+        return "thanks"
+    if t.lower() in {"ok", "okay", "k", "cool", "got it", "alright"}:
+        return "ack"
+    return None
+
+
+def _first_name(user_name: str | None) -> str | None:
+    if not user_name or user_name.lower() in {"user", "guest"}:
+        return None
+    return user_name.split()[0]
+
+
+def _empathic_lead(text: str, text_emotion: str, stats: dict) -> str:
+    """Short, natural opener — like ChatGPT — skipped when conversation is ongoing."""
+    if not stats["is_first_user_message"]:
+        leads = _retrieve_dialogue(text_emotion + " continue conversation", "continue", 4)
+        if not leads:
+            leads = [
+                "Yeah, that makes sense.",
+                "I hear you.",
+                "That sounds really hard.",
+                "Got it — tell me more about that.",
+                "Mm, I follow you.",
+            ]
+        return _stable_pick(leads, text)
+
+    small = _is_small_talk(text)
+    name = _first_name(None)
+
+    if small == "greeting":
+        return _stable_pick(
+            ["Hey! What's going on?", "Hi — how's your day been?", "Hello. What would you like to talk about?"],
+            text,
+        )
+    if small == "thanks":
+        return _stable_pick(
+            ["Anytime.", "Of course — I'm glad it helped.", "You're welcome. I'm still here if you need me."],
+            text,
+        )
+    if small == "ack":
+        return _stable_pick(
+            ["Okay. We can pause here, or keep going — whatever you need.", "Sure. I'm here when you're ready."],
+            text,
+        )
+
+    if text_emotion == "Distress Detected":
+        return _stable_pick(
+            [
+                "That sounds like a lot to carry.",
+                "I'm sorry you're going through this.",
+                "Oof — that's heavy. I'm listening.",
+            ],
+            text,
+        )
+    if text_emotion == "Mild Negative":
+        return _stable_pick(
+            ["Something's bothering you — want to unpack it?", "Sounds like today's been rough."],
+            text,
+        )
+    return _stable_pick(
+        [
+            "Thanks for telling me that.",
+            "I'm listening.",
+            "Okay — go on.",
+        ],
+        text,
+    )
+
+
+def _subtle_memory(emotion_history: list[dict], stats: dict) -> str | None:
+    """Longitudinal hint — only occasionally, never 'welcome back'."""
+    if stats["user_count"] < 2 or not emotion_history:
+        return None
+    if stats["user_count"] % 4 != 0:
+        return None
+
+    moods = [e.get("textEmotion") for e in emotion_history[-4:] if e.get("textEmotion") and e.get("textEmotion") != "pending"]
+    if len(moods) < 2:
+        return None
+    return None  # keep memory implicit in RAG; avoid repetitive callbacks
+
+
+def _reference_last_turn(text: str, stats: dict) -> str | None:
+    if stats["user_count"] < 2 or not stats["last_user"]:
+        return None
+    if _is_small_talk(text):
+        return None
+    return None
+
+
+def _build_body(text: str, text_emotion: str, distortion: str, rag_context: dict, stats: dict) -> str:
+    parts = []
+
+    if distortion != "None":
+        humanized = _retrieve_dialogue(distortion, "humanize", 2)
+        insight = _stable_pick(humanized, distortion) if humanized else _humanize_clinical_content(rag_context["content"])
+        parts.append(insight)
+    elif text_emotion in {"Distress Detected", "Mild Negative"}:
+        parts.append(_humanize_clinical_content(rag_context["content"]))
+    else:
+        snippet = _humanize_clinical_content(rag_context["content"])
+        if len(snippet) > 220:
+            snippet = snippet[:217].rsplit(" ", 1)[0] + "..."
+        parts.append(snippet)
+
+    return " ".join(parts)
+
+
+def _optional_face_note(facial_emotion: str) -> str | None:
+    if facial_emotion in {"No Input", "No Face Detected", "Neutral", "No input"}:
+        return None
+    notes = {
+        "Sadness": "You look a bit down too — I'm not ignoring that.",
+        "Sad": "There's some sadness on your face; that's okay.",
+        "Angry": "You seem tense — that's valid.",
+        "Fear": "You look a little on edge.",
+        "Happiness": "There's a bit of warmth in your expression, actually.",
+    }
+    return notes.get(facial_emotion)
+
+
+def _maybe_follow_up(text: str, distortion: str, stats: dict, rag_context: dict) -> str | None:
+    if _is_small_talk(text) in {"thanks", "ack"}:
+        return None
+    if stats["user_count"] > 0 and stats["user_count"] % 2 == 1:
+        return None
+
+    followups = _retrieve_dialogue(rag_context.get("technique", ""), "followup", 3)
+    if not followups:
+        followups = ["What part of this feels heaviest right now?", "Want to keep talking about it?"]
+    return _stable_pick(followups, text + distortion)
 
 
 def _build_contradiction_response(
@@ -134,75 +253,44 @@ def _build_contradiction_response(
     contradiction: dict,
     rag_context: dict,
     user_name: str | None,
+    stats: dict,
 ) -> str:
-    """Dedicated human response when text and face emotions conflict (Synopsis 3.3)."""
     detected = contradiction.get("detected_emotions", {})
-    text_feel = detected.get("text_emotion_human", "one thing")
-    face_feel = detected.get("facial_emotion_human")
+    text_feel = detected.get("text_emotion_human", "that you're okay")
+    face_feel = detected.get("facial_emotion_human", "something harder")
     ctype = contradiction.get("contradiction_type")
-    name = user_name.split()[0] if user_name and user_name.lower() not in {"user", "guest"} else None
+    name = _first_name(user_name)
 
-    openers = _retrieve_dialogue("contradiction gentle honest caring", "contradiction", 2)
-    reassure = _retrieve_dialogue("fine when hurting human", "contradiction", 2)
-    invites = _retrieve_dialogue("no judgment safe space", "contradiction", 1)
-    followups = _retrieve_dialogue("truth how today really been", "contradiction_followup", 2)
-    humanize = _retrieve_dialogue("gentle exploration emotional masking", "humanize", 1)
-
-    parts = []
-
-    # Warm, human opener — like a friend checking in
-    if openers:
-        opener = _stable_pick(openers, text)
-        if name and not opener.lower().startswith(name.lower()):
-            opener = f"{name}, {opener[0].lower() + opener[1:]}" if opener else opener
-        parts.append(opener)
-    elif name:
-        parts.append(f"{name}, I want to check in with you about something I noticed.")
-    else:
-        parts.append("I want to check in with you about something I noticed.")
-
-    # Explicitly name BOTH detected emotions — core synopsis requirement
     if ctype == "words_pain_face_masked":
-        parts.append(
-            f"In your message, I hear {text_feel}. "
-            f"But when I look at you, your expression seems to show {face_feel} — "
-            f"almost like you're trying to stay composed even though something is weighing on you."
+        core = (
+            f"You wrote like you're {text_feel}, but your face looks more like {face_feel} — "
+            f"like you're holding it together on the outside."
         )
     elif ctype == "mixed_distress_signals":
-        parts.append(
-            f"What you wrote sounds {text_feel}, "
-            f"but your face is showing me something closer to {face_feel}. "
-            f"Both can be true at once — sometimes words and feelings don't line up neatly."
+        core = (
+            f"Your words feel {text_feel}, but I'm picking up {face_feel} in your expression. "
+            f"Both can be true."
         )
     else:
-        parts.append(
-            f"You told me {text_feel}, and I want to respect that. "
-            f"At the same time, I'm noticing {face_feel} in your expression — "
-            f"and I don't think I should ignore that."
+        core = (
+            f"You said {text_feel}, but I'm noticing {face_feel} when I look at you. "
+            f"I don't want to skip over that."
         )
 
-    # Empathetic acknowledgment — not clinical
-    if reassure:
-        parts.append(_stable_pick(reassure, text + "reassure"))
+    humanize = _retrieve_dialogue("gentle exploration", "humanize", 1)
+    extra = humanize[0] if humanize else _humanize_clinical_content(rag_context.get("content", ""))
+
+    followups = _retrieve_dialogue("contradiction", "contradiction_followup", 2)
+    follow = _stable_pick(followups, text) if followups else "What's the feeling underneath?"
+
+    if name and stats["is_first_user_message"]:
+        lead = f"{name}, can I mention something gently?"
+    elif stats["is_first_user_message"]:
+        lead = "Can I mention something gently?"
     else:
-        parts.append(
-            "It's so common to say we're okay when we're not. "
-            "That doesn't mean you're pretending — it often means you're protecting yourself."
-        )
+        lead = _stable_pick(["One thing I noticed —", "Can I be honest for a second?", "Something caught my attention —"], text)
 
-    # RAG-grounded gentle exploration
-    if humanize:
-        parts.append(humanize[0])
-    else:
-        parts.append(_humanize_clinical_content(rag_context.get("content", "")))
-
-    if invites:
-        parts.append(invites[0])
-
-    follow_up = _stable_pick(followups, text) if followups else "What's the feeling you've been carrying that 'fine' doesn't quite cover?"
-    parts.append(follow_up)
-
-    return "\n\n".join(p for p in parts if p.strip())
+    return f"{lead} {core} {extra} {follow}"
 
 
 def generate_humanized_response(
@@ -219,19 +307,19 @@ def generate_humanized_response(
 ) -> dict:
     conversation_messages = conversation_messages or []
     emotion_history = emotion_history or []
+    stats = _conversation_stats(conversation_messages)
+    name = _first_name(user_name)
 
     if safety["safety_triggered"]:
-        opener = _retrieve_dialogue("crisis safety support", "opener", 1)
-        opener_text = opener[0] if opener else "I'm really worried about you, and I want you to be safe."
+        lead = "I'm really worried about you." if not name else f"{name}, I'm really worried about you."
         return {
-            "response": f"{opener_text}\n\n{rag_context['content']}",
+            "response": f"{lead}\n\n{rag_context['content']}",
             "follow_up_suggestions": ["I need help now", "I'm not safe", "Tell me about helplines"],
             "technique_used": "Safety Escalation",
         }
 
-    # ── Contradiction path: dedicated empathetic response (Synopsis 3.3) ──
     if contradiction["contradiction_detected"] and contradiction.get("detected_emotions", {}).get("facial_emotion_human"):
-        response = _build_contradiction_response(text, contradiction, rag_context, user_name)
+        response = _build_contradiction_response(text, contradiction, rag_context, user_name, stats)
         return {
             "response": response,
             "follow_up_suggestions": [
@@ -245,61 +333,29 @@ def generate_humanized_response(
 
     parts = []
 
-    # Opener — warm and human
-    openers = _retrieve_dialogue(text, "opener", 3)
-    if not openers:
-        openers = ["Thank you for opening up to me. I'm listening."]
-    parts.append(_personalize(_stable_pick(openers, text), user_name))
+    lead = _empathic_lead(text, text_emotion, stats)
+    if lead:
+        parts.append(lead)
 
-    # Longitudinal memory reference (synopsis RAG memory)
-    history_ref = _reference_history(conversation_messages, emotion_history)
-    if history_ref:
-        parts.append(history_ref)
+    memory = _subtle_memory(emotion_history, stats)
+    if memory:
+        parts.append(memory)
 
-    # Reflect user's words — makes it feel like someone is listening
-    key = _extract_key_phrase(text)
-    if key or len(text) > 15:
-        parts.append(_mirror_user_words(text))
+    body = _build_body(text, text_emotion, distortion, rag_context, stats)
+    if body and body not in lead:
+        parts.append(body)
 
-    # RAG-grounded CBT — woven naturally
-    if distortion != "None":
-        parts.append(f"Something in what you shared reminds me of a thinking pattern many people go through — {distortion.lower()}. You're not alone in that.")
-        humanized = _retrieve_dialogue(distortion, "humanize", 2)
-        if humanized:
-            parts.append(_stable_pick(humanized, distortion))
-        else:
-            parts.append(_humanize_clinical_content(rag_context["content"]))
-    elif text_emotion == "Distress Detected":
-        parts.append("It sounds like you're carrying something heavy right now, and that weight is real.")
-        parts.append(_humanize_clinical_content(rag_context["content"]))
-    else:
-        parts.append(_humanize_clinical_content(rag_context["content"]))
+    face = _optional_face_note(facial_emotion)
+    if face:
+        parts.append(face)
 
-    # Facial note — only when no contradiction (contradiction path already covers both)
-    if facial_emotion not in {"No Input", "No Face Detected", "Neutral", "No input"}:
-        face_note = {
-            "Sadness": "There's a tenderness in your expression — I'm noticing that, and it matters.",
-            "Sad": "I can see some sadness in your face, and I want you to know that's okay to feel.",
-            "Angry": "You seem tense right now. Sometimes anger is just pain wearing armor.",
-            "Fear": "You look a little on edge — and that makes sense if things feel uncertain.",
-            "Happiness": "There's a warmth in your expression. I'm glad a little of that is showing.",
-        }
-        parts.append(face_note.get(facial_emotion, f"I can sense {facial_emotion.lower()} in your expression, and I'm here with you."))
+    follow = _maybe_follow_up(text, distortion, stats, rag_context)
+    if follow:
+        parts.append(follow)
 
-    # Follow-up question — conversational closure
-    followups = _retrieve_dialogue(rag_context.get("technique", "Supportive Listening"), "followup", 3)
-    if not followups:
-        followups = ["What would feel most helpful to talk about next?"]
-    follow_up = _stable_pick(followups, text + distortion)
+    response = " ".join(p.strip() for p in parts if p and p.strip())
 
-    closings = _retrieve_dialogue("supportive listening", "closing", 2)
-    closing = closings[0] if closings else "Take your time — I'm here."
-
-    response = "\n\n".join(p for p in parts if p.strip())
-    response += f"\n\n{follow_up}"
-
-    # Quick reply suggestions based on context
-    suggestions = _build_quick_replies(distortion, text_emotion, contradiction["contradiction_detected"])
+    suggestions = _build_quick_replies(distortion, text_emotion, contradiction["contradiction_detected"], stats)
 
     return {
         "response": response,
@@ -308,11 +364,11 @@ def generate_humanized_response(
     }
 
 
-def _build_quick_replies(distortion: str, text_emotion: str, contradiction: bool) -> list[str]:
+def _build_quick_replies(distortion: str, text_emotion: str, contradiction: bool, stats: dict) -> list[str]:
     if contradiction:
-        return ["Actually, I'm not okay", "I'd rather not talk about it", "Something is bothering me", "Can we explore that?"]
+        return ["You're right, I'm not okay", "I'd rather not talk about it yet", "Something is bothering me"]
     if distortion != "None":
-        return ["That thought keeps repeating", "I want to challenge this thought", "It feels true even if I know it's not", "Can we try an exercise?"]
+        return ["That thought keeps repeating", "Help me challenge this thought", "It feels true even if it isn't"]
     if text_emotion == "Distress Detected":
-        return ["It's about work or studies", "I feel overwhelmed", "I don't know where to start", "I just need someone to listen"]
-    return ["Tell me more", "I had a better moment today", "Can we try a CBT exercise?", "I'm not sure how I feel"]
+        return ["It's about work or studies", "I feel overwhelmed", "I just need someone to listen"]
+    return ["Tell me more", "Actually, there's more to it", "Can we try a short exercise?", "I'm not sure"]

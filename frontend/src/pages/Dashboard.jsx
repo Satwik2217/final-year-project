@@ -92,17 +92,35 @@ export default function Dashboard() {
     }
   }, []);
 
-  const loadSessionMessages = useCallback(async (sessionId) => {
+  const loadSessionMessages = useCallback(async (sessionId, options = {}) => {
     const data = await apiFetch(`/api/sessions/${sessionId}/messages`);
+
+    if (options.addLoginGreeting && data.messages.length === 0) {
+      try {
+        const greeting = await apiFetch(`/api/sessions/${sessionId}/login-greeting`, {
+          method: 'POST',
+          body: JSON.stringify({}),
+        });
+        if (greeting.message) {
+          data.messages = [greeting.message];
+        }
+      } catch {
+        // optional greeting
+      }
+    }
+
     setMessages(data.messages.map(mapMessage));
     setActiveSessionId(sessionId);
     setQuickReplies(DEFAULT_QUICK_REPLIES);
   }, []);
 
-  const startNewSession = useCallback(async () => {
+  const createSession = useCallback(async ({ greetingType = 'none' } = {}) => {
     const data = await apiFetch('/api/sessions', {
       method: 'POST',
-      body: JSON.stringify({ sessionTitle: `Session ${new Date().toLocaleDateString()}` }),
+      body: JSON.stringify({
+        sessionTitle: `Session ${new Date().toLocaleDateString()}`,
+        greetingType,
+      }),
     });
 
     setSessions((prev) => [data.session, ...prev]);
@@ -110,20 +128,30 @@ export default function Dashboard() {
     setActiveSessionId(data.session._id);
     setAnalytics(DEFAULT_ANALYTICS);
     setQuickReplies(DEFAULT_QUICK_REPLIES);
+    return data.session;
   }, []);
+
+  const startNewSession = useCallback(async () => {
+    await createSession({ greetingType: 'none' });
+  }, [createSession]);
 
   useEffect(() => {
     async function init() {
       try {
         setLoading(true);
+        const pendingGreeting = sessionStorage.getItem('neurowell_pending_greeting') === 'true';
+        sessionStorage.removeItem('neurowell_pending_greeting');
+
         const sessionList = await apiFetch('/api/sessions');
         await loadMoodData();
 
         if (sessionList.length > 0) {
           setSessions(sessionList);
-          await loadSessionMessages(sessionList[0]._id);
+          await loadSessionMessages(sessionList[0]._id, { addLoginGreeting: pendingGreeting });
+        } else if (pendingGreeting) {
+          await createSession({ greetingType: 'login' });
         } else {
-          await startNewSession();
+          await createSession({ greetingType: 'none' });
         }
       } catch (err) {
         if (err.message.includes('token') || err.message.includes('Session expired')) {
@@ -138,7 +166,7 @@ export default function Dashboard() {
     }
 
     init();
-  }, [loadSessionMessages, loadMoodData, navigate, startNewSession]);
+  }, [loadSessionMessages, loadMoodData, navigate, createSession]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -407,6 +435,16 @@ export default function Dashboard() {
           <ContradictionInsight metrics={analytics} />
 
           <div className="flex-1 p-6 overflow-y-auto space-y-5">
+            {messages.length === 0 && !sending && (
+              <div className="flex flex-col items-center justify-center py-16 text-center px-6">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-500/20 to-teal-600/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold mb-4">
+                  N
+                </div>
+                <p className="text-slate-400 text-sm max-w-sm">
+                  Start typing when you're ready — I'll respond naturally, like a conversation, not a script.
+                </p>
+              </div>
+            )}
             {messages.map((msg) => (
               <ChatMessage
                 key={msg.id}
@@ -423,7 +461,7 @@ export default function Dashboard() {
                   <p className="text-[11px] text-slate-500 pl-12">Reading your words & expression…</p>
                 )}
                 {typingStage === 'composing' && (
-                  <p className="text-[11px] text-slate-500 pl-12">Retrieving CBT guidance from memory…</p>
+                  <p className="text-[11px] text-slate-500 pl-12">Thinking…</p>
                 )}
               </div>
             )}
@@ -444,7 +482,7 @@ export default function Dashboard() {
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={`What's on your mind, ${userName.split(' ')[0] || 'friend'}?`}
+                placeholder="Message NeuroWell…"
                 disabled={sending}
                 className="flex-1 bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 placeholder-slate-500 shadow-inner disabled:opacity-50 resize-none min-h-[48px] max-h-32"
               />

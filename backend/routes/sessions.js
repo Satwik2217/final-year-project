@@ -6,6 +6,7 @@ const EmotionLog = require('../models/EmotionLog');
 const User = require('../models/User');
 const protect = require('../middleware/authMiddleware');
 const { analyzeWithAI } = require('../services/aiService');
+const { pickLoginGreeting } = require('../utils/greetings');
 
 function buildMetrics(emotionLog, aiResult) {
   const detected = aiResult?.detectedEmotions || {};
@@ -24,28 +25,31 @@ function buildMetrics(emotionLog, aiResult) {
   };
 }
 
-function buildWelcomeMessage(userName) {
-  const name = userName?.split(' ')[0] || 'there';
-  return `Hey ${name}, I'm NeuroWell — your wellness companion.\n\nI'm not here to lecture or diagnose. I'm here to listen, remember what you share across sessions, and walk through things with you at your pace.\n\nHow are you really feeling today? You can be honest — there's no wrong answer.`;
-}
-
 router.post('/', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user.userId).select('name');
+    const { sessionTitle, greetingType } = req.body;
+
     const session = new Session({
       userId: req.user.userId,
-      sessionTitle: req.body.sessionTitle || 'Therapy Session',
+      sessionTitle: sessionTitle || 'Therapy Session',
     });
     await session.save();
 
-    const welcome = new Message({
-      sessionId: session._id,
-      sender: 'ai',
-      text: buildWelcomeMessage(user?.name),
-    });
-    await welcome.save();
+    const messages = [];
 
-    res.status(201).json({ session, messages: [welcome] });
+    // Greet only on explicit login greeting — not on every new session
+    if (greetingType === 'login') {
+      const welcome = new Message({
+        sessionId: session._id,
+        sender: 'ai',
+        text: pickLoginGreeting(user?.name, String(req.user.userId)),
+      });
+      await welcome.save();
+      messages.push(welcome);
+    }
+
+    res.status(201).json({ session, messages });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -55,6 +59,32 @@ router.get('/', protect, async (req, res) => {
   try {
     const sessions = await Session.find({ userId: req.user.userId }).sort({ startedAt: -1 });
     res.json(sessions);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/:id/login-greeting', protect, async (req, res) => {
+  try {
+    const session = await Session.findOne({ _id: req.params.id, userId: req.user.userId });
+    if (!session) {
+      return res.status(404).json({ message: 'Session not found' });
+    }
+
+    const existing = await Message.countDocuments({ sessionId: session._id });
+    if (existing > 0) {
+      return res.json({ skipped: true, reason: 'Session already has messages' });
+    }
+
+    const user = await User.findById(req.user.userId).select('name');
+    const welcome = new Message({
+      sessionId: session._id,
+      sender: 'ai',
+      text: pickLoginGreeting(user?.name, String(req.user.userId)),
+    });
+    await welcome.save();
+
+    res.status(201).json({ message: welcome });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -90,7 +120,7 @@ router.post('/:id/messages', protect, async (req, res) => {
 
     const priorMessages = await Message.find({ sessionId: session._id })
       .sort({ createdAt: 1 })
-      .limit(12)
+      .limit(16)
       .lean();
 
     const conversationMessages = priorMessages.map((m) => ({

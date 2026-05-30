@@ -47,8 +47,8 @@ function fallbackAnalysis(text, userName) {
     safetyTriggered: isCrisis,
     safetyStatus: isCrisis ? 'Alert' : 'Secure',
     botResponse: isCrisis
-      ? `Hey ${name}, I'm really concerned about what you shared. Please reach out to Tele-MANAS at 14416 or iCall at 9152987821. You don't have to face this alone.`
-      : `Thanks for sharing that, ${name}. I'm here with you — the AI engine is reconnecting, but your message is saved. Would you tell me a little more about how you're feeling right now?`,
+      ? `I'm really worried about what you shared. Please call Tele-MANAS at 14416 or iCall at 9152987821 — you don't have to go through this alone.`
+      : `I hear you. ${/sad|anxious|stress|worried/.test(lower) ? "That sounds tough." : "Tell me more — I'm listening."}`,
     quickReplies: isCrisis
       ? ['I need help now', 'Tell me about helplines', "I'm not safe"]
       : ['I feel anxious', 'I had a rough day', 'Can we talk more?', "I'm not sure"],
