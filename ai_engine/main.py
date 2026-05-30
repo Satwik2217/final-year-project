@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 from services.pipeline import run_pipeline
 
-app = FastAPI(title="NeuroWell AI Engine", version="1.0.0")
+app = FastAPI(title="NeuroWell AI Engine", version="1.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -17,23 +17,36 @@ app.add_middleware(
 )
 
 
+class ConversationMessage(BaseModel):
+    sender: str
+    text: str
+
+
 class AnalyzeRequest(BaseModel):
     text: str
     image_base64: Optional[str] = None
     session_history: Optional[list] = None
+    conversation_messages: Optional[list[ConversationMessage]] = None
+    user_name: Optional[str] = None
 
 
 @app.get("/health")
 def health():
-    return {"status": "online", "engine": "NeuroWell AI Engine v1.0"}
+    return {"status": "online", "engine": "NeuroWell Humanized RAG Engine v1.1"}
 
 
 @app.post("/analyze")
 def analyze(request: AnalyzeRequest):
+    conversation = [
+        {"sender": m.sender, "text": m.text}
+        for m in (request.conversation_messages or [])
+    ]
     result = run_pipeline(
         text=request.text,
         image_base64=request.image_base64,
         session_history=request.session_history or [],
+        conversation_messages=conversation,
+        user_name=request.user_name,
     )
     return result
 

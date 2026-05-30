@@ -5,6 +5,10 @@ import ConsentModal from '../components/ConsentModal';
 import CrisisModal from '../components/CrisisModal';
 import WebcamPanel from '../components/WebcamPanel';
 import MoodChart from '../components/MoodChart';
+import ChatMessage from '../components/ChatMessage';
+import TypingIndicator from '../components/TypingIndicator';
+import QuickReplies from '../components/QuickReplies';
+import ContradictionInsight from '../components/ContradictionInsight';
 
 const DEFAULT_ANALYTICS = {
   detectedExpression: 'Awaiting input',
@@ -16,6 +20,13 @@ const DEFAULT_ANALYTICS = {
   visionEngine: 'None',
 };
 
+const DEFAULT_QUICK_REPLIES = [
+  "I'm feeling anxious today",
+  "I had a rough day",
+  "Can we talk about stress?",
+  "I'm okay, just tired",
+];
+
 function formatSessionDate(dateStr) {
   return new Date(dateStr).toLocaleString([], {
     month: 'short',
@@ -25,11 +36,22 @@ function formatSessionDate(dateStr) {
   });
 }
 
+function mapMessage(msg) {
+  return {
+    id: msg._id,
+    sender: msg.sender === 'ai' ? 'bot' : 'user',
+    text: msg.text,
+    createdAt: msg.createdAt,
+    animate: false,
+  };
+}
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const userName = localStorage.getItem('userName') || 'User';
   const messagesEndRef = useRef(null);
   const latestFrameRef = useRef(null);
+  const textareaRef = useRef(null);
 
   const [consentResolved, setConsentResolved] = useState(
     () => localStorage.getItem('neurowell_consent') === 'true'
@@ -47,9 +69,11 @@ export default function Dashboard() {
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [typingStage, setTypingStage] = useState('');
   const [error, setError] = useState('');
   const [analytics, setAnalytics] = useState(DEFAULT_ANALYTICS);
   const [showCrisisModal, setShowCrisisModal] = useState(false);
+  const [quickReplies, setQuickReplies] = useState(DEFAULT_QUICK_REPLIES);
 
   const handleFrameCapture = useCallback((frame) => {
     latestFrameRef.current = frame;
@@ -70,14 +94,9 @@ export default function Dashboard() {
 
   const loadSessionMessages = useCallback(async (sessionId) => {
     const data = await apiFetch(`/api/sessions/${sessionId}/messages`);
-    setMessages(
-      data.messages.map((msg) => ({
-        id: msg._id,
-        sender: msg.sender === 'ai' ? 'bot' : 'user',
-        text: msg.text,
-      }))
-    );
+    setMessages(data.messages.map(mapMessage));
     setActiveSessionId(sessionId);
+    setQuickReplies(DEFAULT_QUICK_REPLIES);
   }, []);
 
   const startNewSession = useCallback(async () => {
@@ -87,15 +106,10 @@ export default function Dashboard() {
     });
 
     setSessions((prev) => [data.session, ...prev]);
-    setMessages(
-      data.messages.map((msg) => ({
-        id: msg._id,
-        sender: msg.sender === 'ai' ? 'bot' : 'user',
-        text: msg.text,
-      }))
-    );
+    setMessages(data.messages.map(mapMessage));
     setActiveSessionId(data.session._id);
     setAnalytics(DEFAULT_ANALYTICS);
+    setQuickReplies(DEFAULT_QUICK_REPLIES);
   }, []);
 
   useEffect(() => {
@@ -128,7 +142,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [messages, sending, typingStage]);
 
   const handleConsent = (allowCamera) => {
     localStorage.setItem('neurowell_consent', 'true');
@@ -138,31 +152,54 @@ export default function Dashboard() {
     setShowConsent(false);
   };
 
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    if (!inputValue.trim() || !activeSessionId || sending) return;
+  const sendText = async (userText) => {
+    if (!userText.trim() || !activeSessionId || sending) return;
 
-    const userText = inputValue.trim();
+    const trimmed = userText.trim();
     setInputValue('');
     setSending(true);
     setError('');
+    setTypingStage('listening');
 
-    const tempUserMsg = { id: `temp-${Date.now()}`, sender: 'user', text: userText };
+    const tempUserMsg = {
+      id: `temp-${Date.now()}`,
+      sender: 'user',
+      text: trimmed,
+      createdAt: new Date().toISOString(),
+      animate: false,
+    };
     setMessages((prev) => [...prev, tempUserMsg]);
 
     try {
+      setTimeout(() => setTypingStage('analyzing'), 600);
+      setTimeout(() => setTypingStage('composing'), 1800);
+
       const data = await apiFetch(`/api/sessions/${activeSessionId}/messages`, {
         method: 'POST',
         body: JSON.stringify({
-          text: userText,
+          text: trimmed,
           imageBase64: cameraAllowed ? latestFrameRef.current : null,
         }),
       });
 
+      setTypingStage('');
+
       setMessages((prev) => [
         ...prev.filter((m) => m.id !== tempUserMsg.id),
-        { id: data.userMessage._id, sender: 'user', text: data.userMessage.text },
-        { id: data.aiMessage._id, sender: 'bot', text: data.aiMessage.text },
+        {
+          id: data.userMessage._id,
+          sender: 'user',
+          text: data.userMessage.text,
+          createdAt: data.userMessage.createdAt,
+          animate: false,
+        },
+        {
+          id: data.aiMessage._id,
+          sender: 'bot',
+          text: data.aiMessage.text,
+          createdAt: data.aiMessage.createdAt,
+          animate: true,
+        },
       ]);
 
       if (data.metrics) {
@@ -171,10 +208,17 @@ export default function Dashboard() {
           actionUnits: data.metrics.actionUnits,
           cognitiveDistortion: data.metrics.cognitiveDistortion,
           contradictionDetected: data.metrics.contradictionDetected,
+          contradictionType: data.metrics.contradictionType,
+          textEmotionHuman: data.metrics.textEmotionHuman,
+          facialEmotionHuman: data.metrics.facialEmotionHuman,
           safetyStatus: data.metrics.safetyStatus,
           facialEmotion: data.metrics.facialEmotion,
           visionEngine: data.metrics.visionEngine,
         });
+      }
+
+      if (data.quickReplies?.length) {
+        setQuickReplies(data.quickReplies);
       }
 
       if (data.safetyTriggered) {
@@ -183,10 +227,24 @@ export default function Dashboard() {
 
       await loadMoodData();
     } catch (err) {
+      setTypingStage('');
       setMessages((prev) => prev.filter((m) => m.id !== tempUserMsg.id));
       setError(err.message || 'Failed to send message');
     } finally {
       setSending(false);
+      textareaRef.current?.focus();
+    }
+  };
+
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    sendText(inputValue);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendText(inputValue);
     }
   };
 
@@ -200,7 +258,12 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className="h-screen bg-slate-900 text-slate-100 flex items-center justify-center font-sans">
-        <p className="text-slate-400">Loading NeuroWell engine…</p>
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 mx-auto rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-sm font-bold animate-pulse">
+            N
+          </div>
+          <p className="text-slate-400 text-sm">NeuroWell is preparing your space…</p>
+        </div>
       </div>
     );
   }
@@ -215,14 +278,17 @@ export default function Dashboard() {
       )}
       {showCrisisModal && <CrisisModal onClose={() => setShowCrisisModal(false)} />}
 
-      <header className="bg-slate-800/80 border-b border-slate-700/50 px-6 py-4 flex justify-between items-center backdrop-blur-md">
+      <header className="bg-slate-800/80 border-b border-slate-700/50 px-6 py-4 flex justify-between items-center backdrop-blur-md shrink-0">
         <div className="flex items-center space-x-3">
-          <span className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
+          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-sm font-bold shadow-lg shadow-emerald-900/20">
+            N
+          </div>
           <div>
-            <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
-              NeuroWell — Beyond Generative AI
-            </h1>
-            <p className="text-[10px] text-slate-500 font-mono">Multimodal CBT Engine · RAG · Longitudinal Memory</p>
+            <h1 className="text-lg font-bold text-white">NeuroWell</h1>
+            <p className="text-[11px] text-emerald-400/80 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              {sending ? 'Listening & responding…' : 'Here with you · RAG-grounded CBT'}
+            </p>
           </div>
         </div>
         <div className="flex items-center space-x-4">
@@ -240,7 +306,7 @@ export default function Dashboard() {
       </header>
 
       <main className="flex-1 flex overflow-hidden">
-        <section className="w-80 bg-slate-800/40 border-r border-slate-700/30 p-4 flex flex-col space-y-3 overflow-y-auto">
+        <section className="w-80 bg-slate-800/40 border-r border-slate-700/30 p-4 flex flex-col space-y-3 overflow-y-auto shrink-0">
           <div className="flex items-center justify-between">
             <h3 className="text-slate-400 font-bold tracking-wider text-[11px] uppercase">Past Sessions</h3>
             <button
@@ -274,7 +340,7 @@ export default function Dashboard() {
 
           <div className="bg-slate-950/60 rounded-xl p-4 border border-slate-700/40 space-y-2 font-mono text-xs">
             <h3 className="text-slate-400 font-bold tracking-wider text-[11px] uppercase border-b border-slate-800 pb-1.5">
-              Dual-Channel Matrix
+              Live Analysis
             </h3>
             <div className="flex justify-between">
               <span className="text-slate-500">Text Affect:</span>
@@ -289,12 +355,8 @@ export default function Dashboard() {
               <span className="text-amber-400">{analytics.actionUnits}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-500">CBT Distortion:</span>
+              <span className="text-slate-500">CBT Pattern:</span>
               <span className="text-red-400 truncate max-w-[120px]">{analytics.cognitiveDistortion}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Vision Engine:</span>
-              <span className="text-slate-400">{analytics.visionEngine}</span>
             </div>
             <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
               <span className="text-slate-500">Safety:</span>
@@ -313,8 +375,15 @@ export default function Dashboard() {
           </div>
 
           {analytics.contradictionDetected && (
-            <div className="bg-amber-950/40 rounded-xl p-3 border border-amber-800/40 text-xs text-amber-300">
-              Contradiction detected: text and facial channels conflict. Empathetic exploration triggered.
+            <div className="bg-amber-950/40 rounded-xl p-3 border border-amber-800/40 text-xs text-amber-300 space-y-1">
+              <p className="font-medium">Emotion mismatch noticed</p>
+              {analytics.textEmotionHuman && analytics.facialEmotionHuman && (
+                <p>
+                  Words: <span className="text-amber-200">{analytics.textEmotionHuman}</span>
+                  <br />
+                  Expression: <span className="text-amber-200">{analytics.facialEmotionHuman}</span>
+                </p>
+              )}
             </div>
           )}
 
@@ -322,64 +391,73 @@ export default function Dashboard() {
 
           {summary && (
             <div className="text-[10px] text-slate-500 space-y-0.5">
-              <p>Interactions: {summary.totalInteractions}</p>
-              <p>Contradictions: {summary.contradictionsDetected}</p>
-              <p>Top distortion: {summary.commonDistortion}</p>
+              <p>Conversations: {summary.totalInteractions}</p>
+              <p>Longitudinal memory active</p>
             </div>
           )}
         </section>
 
-        <section className="flex-1 flex flex-col bg-slate-950">
+        <section className="flex-1 flex flex-col bg-slate-950 min-w-0">
           {error && (
             <div className="mx-6 mt-4 text-sm text-red-400 bg-red-950/40 border border-red-800/40 rounded-xl px-4 py-2">
               {error}
             </div>
           )}
 
-          <div className="flex-1 p-6 overflow-y-auto space-y-4">
+          <ContradictionInsight metrics={analytics} />
+
+          <div className="flex-1 p-6 overflow-y-auto space-y-5">
             {messages.map((msg) => (
-              <div key={msg.id} className={`flex ${msg.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                <div
-                  className={`max-w-xl rounded-2xl p-4 text-sm leading-relaxed shadow-md ${
-                    msg.sender === 'user'
-                      ? 'bg-emerald-600 text-white rounded-br-none'
-                      : 'bg-slate-800 text-slate-100 border border-slate-700/50 rounded-bl-none'
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
-                </div>
-              </div>
+              <ChatMessage
+                key={msg.id}
+                message={msg}
+                userName={userName}
+                animate={msg.animate}
+              />
             ))}
+
             {sending && (
-              <div className="flex justify-start">
-                <div className="bg-slate-800 border border-slate-700/50 rounded-2xl rounded-bl-none px-4 py-3 text-xs text-slate-400">
-                  Analyzing text + vision channels · retrieving CBT context…
-                </div>
+              <div className="space-y-2">
+                <TypingIndicator />
+                {typingStage === 'analyzing' && (
+                  <p className="text-[11px] text-slate-500 pl-12">Reading your words & expression…</p>
+                )}
+                {typingStage === 'composing' && (
+                  <p className="text-[11px] text-slate-500 pl-12">Retrieving CBT guidance from memory…</p>
+                )}
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="p-4 bg-slate-900 border-t border-slate-800">
-            <form onSubmit={handleSendMessage} className="flex space-x-3">
-              <input
-                type="text"
+          <QuickReplies
+            suggestions={quickReplies}
+            onSelect={sendText}
+            disabled={sending}
+          />
+
+          <div className="p-4 bg-slate-900 border-t border-slate-800 shrink-0">
+            <form onSubmit={handleSendMessage} className="flex gap-3 items-end">
+              <textarea
+                ref={textareaRef}
+                rows={1}
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
-                placeholder="Share how you're feeling…"
+                onKeyDown={handleKeyDown}
+                placeholder={`What's on your mind, ${userName.split(' ')[0] || 'friend'}?`}
                 disabled={sending}
-                className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 placeholder-slate-500 shadow-inner disabled:opacity-50"
+                className="flex-1 bg-slate-950 border border-slate-700 rounded-2xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/30 placeholder-slate-500 shadow-inner disabled:opacity-50 resize-none min-h-[48px] max-h-32"
               />
               <button
                 type="submit"
                 disabled={sending || !inputValue.trim()}
-                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-sm px-5 py-3 rounded-xl shadow-md cursor-pointer"
+                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-sm px-5 py-3 rounded-2xl shadow-md cursor-pointer shrink-0"
               >
-                {sending ? 'Analyzing…' : 'Send'}
+                Send
               </button>
             </form>
             <p className="text-[10px] text-slate-600 mt-2 text-center">
-              Not a substitute for professional care · RAG-grounded CBT · Multimodal analysis
+              Shift+Enter for new line · Empathetic AI grounded in CBT knowledge base
             </p>
           </div>
         </section>

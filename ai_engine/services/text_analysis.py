@@ -14,6 +14,7 @@ DISTORTION_RULES = [
 ]
 
 POSITIVE_WORDS = {"fine", "okay", "ok", "good", "great", "happy", "well", "alright", "better"}
+POSITIVE_FACE_EMOTIONS = {"happy", "happiness", "surprise"}
 NEGATIVE_FACE_EMOTIONS = {
     "sad", "sadness", "angry", "anger", "fear", "fearful", "disgust", "distress detected",
 }

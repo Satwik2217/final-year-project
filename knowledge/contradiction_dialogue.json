@@ -1,0 +1,38 @@
+[
+  {
+    "id": "contradiction_opener_1",
+    "type": "contradiction",
+    "technique": "Gentle Exploration",
+    "content": "Can I share something with you, gently? I might be wrong — and you can tell me if I am."
+  },
+  {
+    "id": "contradiction_opener_2",
+    "type": "contradiction",
+    "technique": "Gentle Exploration",
+    "content": "I want to be honest with you in a caring way, because I think there's more beneath the surface."
+  },
+  {
+    "id": "contradiction_reassurance",
+    "type": "contradiction",
+    "technique": "Gentle Exploration",
+    "content": "A lot of people say they're fine when they're not ready to say they're hurting. That doesn't make you weak — it makes you human."
+  },
+  {
+    "id": "contradiction_invite",
+    "type": "contradiction",
+    "technique": "Gentle Exploration",
+    "content": "You don't owe me an explanation. But if something is sitting heavy inside, I'm here — no judgment, no rush."
+  },
+  {
+    "id": "contradiction_followup_1",
+    "type": "contradiction_followup",
+    "technique": "Gentle Exploration",
+    "content": "What would it feel like to tell me the truth about how today has really been?"
+  },
+  {
+    "id": "contradiction_followup_2",
+    "type": "contradiction_followup",
+    "technique": "Gentle Exploration",
+    "content": "If 'fine' isn't the whole story, what's the part you've been keeping to yourself?"
+  }
+]

@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 
 from functools import lru_cache
@@ -55,56 +54,32 @@ def retrieve_cbt_context(text: str, distortion: str, contradiction: bool, safety
     model = get_embedding_model()
 
     if safety_triggered:
-        query = "crisis safety suicide helpline"
+        query = "crisis safety suicide helpline immediate support"
     elif contradiction:
-        query = "emotional masking contradiction fine but sad"
+        query = "emotional masking contradiction fine but sad gentle exploration"
     elif distortion != "None":
-        query = f"{distortion} {text}"
+        query = f"{distortion} CBT intervention {text}"
     else:
-        query = text
+        query = f"supportive listening empathy {text}"
 
     embedding = model.encode([query]).tolist()
-    results = collection.query(query_embeddings=embedding, n_results=1)
+    results = collection.query(query_embeddings=embedding, n_results=3)
 
-    metadata = results["metadatas"][0][0] if results["metadatas"] and results["metadatas"][0] else {}
-    doc_id = results["ids"][0][0] if results["ids"] and results["ids"][0] else "general"
+    metadatas = results["metadatas"][0] if results.get("metadatas") and results["metadatas"][0] else []
+    ids = results["ids"][0] if results.get("ids") and results["ids"][0] else []
+
+    primary = metadatas[0] if metadatas else {}
+    secondary = metadatas[1] if len(metadatas) > 1 else {}
+
+    combined_content = primary.get("content", "I'm here with you.")
+    if secondary.get("content") and not safety_triggered:
+        combined_content = f"{primary.get('content', '')} {secondary.get('content', '')}".strip()
 
     return {
-        "source_id": doc_id,
-        "technique": metadata.get("technique", "Supportive Listening"),
-        "content": metadata.get("content", "Thank you for sharing. I am here to support you."),
-        "distortion": metadata.get("distortion", distortion),
+        "source_id": ids[0] if ids else "general",
+        "source_ids": ids,
+        "technique": primary.get("technique", "Supportive Listening"),
+        "content": combined_content,
+        "distortion": primary.get("distortion", distortion),
+        "secondary_technique": secondary.get("technique"),
     }
-
-
-def generate_grounded_response(
-    text: str,
-    text_emotion: str,
-    facial_emotion: str,
-    distortion: str,
-    contradiction: dict,
-    safety: dict,
-    rag_context: dict,
-) -> str:
-    if safety["safety_triggered"]:
-        return rag_context["content"]
-
-    parts = []
-
-    if contradiction["contradiction_detected"]:
-        parts.append(contradiction["contradiction_message"])
-
-    if distortion != "None":
-        parts.append(f"I notice a pattern of {distortion.lower()} in what you shared.")
-    elif text_emotion == "Distress Detected":
-        parts.append("It sounds like you may be going through a difficult emotional experience.")
-
-    parts.append(rag_context["content"])
-
-    if facial_emotion not in {"No Input", "No Face Detected", "Neutral"}:
-        parts.append(
-            f"From your visual channel, I am picking up signals consistent with {facial_emotion.lower()} "
-            f"({rag_context['technique']} exercise suggested)."
-        )
-
-    return " ".join(parts)

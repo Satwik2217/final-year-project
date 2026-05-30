@@ -1,11 +1,18 @@
-from services.rag_engine import generate_grounded_response, retrieve_cbt_context
+from services.humanized_response import generate_humanized_response
+from services.rag_engine import retrieve_cbt_context
 from services.safety import evaluate_safety
 from services.synthesis import detect_contradiction
 from services.text_analysis import analyze_text
 from services.vision_analysis import analyze_facial
 
 
-def run_pipeline(text: str, image_base64: str | None = None, session_history: list | None = None) -> dict:
+def run_pipeline(
+    text: str,
+    image_base64: str | None = None,
+    session_history: list | None = None,
+    conversation_messages: list | None = None,
+    user_name: str | None = None,
+) -> dict:
     text_result = analyze_text(text)
     vision_result = analyze_facial(image_base64)
     safety = evaluate_safety(text, text_result["text_emotion"], vision_result["dominant_emotion"])
@@ -18,7 +25,7 @@ def run_pipeline(text: str, image_base64: str | None = None, session_history: li
         safety_triggered=safety["safety_triggered"],
     )
 
-    bot_response = generate_grounded_response(
+    humanized = generate_humanized_response(
         text=text,
         text_emotion=text_result["text_emotion"],
         facial_emotion=vision_result["dominant_emotion"],
@@ -26,17 +33,10 @@ def run_pipeline(text: str, image_base64: str | None = None, session_history: li
         contradiction=contradiction,
         safety=safety,
         rag_context=rag_context,
+        conversation_messages=conversation_messages or [],
+        emotion_history=session_history or [],
+        user_name=user_name,
     )
-
-    history_note = ""
-    if session_history:
-        recent = session_history[-3:]
-        moods = [entry.get("textEmotion") for entry in recent if entry.get("textEmotion")]
-        if moods:
-            history_note = f" Longitudinal context: recent emotional states include {', '.join(moods)}."
-
-    if history_note and not safety["safety_triggered"]:
-        bot_response += history_note
 
     return {
         "textEmotion": text_result["text_emotion"],
@@ -44,14 +44,18 @@ def run_pipeline(text: str, image_base64: str | None = None, session_history: li
         "actionUnits": vision_result["action_units"],
         "cognitiveDistortion": text_result["cognitive_distortion"],
         "contradictionDetected": contradiction["contradiction_detected"],
+        "contradictionType": contradiction.get("contradiction_type"),
         "contradictionMessage": contradiction["contradiction_message"],
+        "detectedEmotions": contradiction.get("detected_emotions", {}),
         "riskLevel": safety["risk_level"],
         "severityScore": safety["severity_score"],
         "safetyTriggered": safety["safety_triggered"],
         "safetyStatus": safety["safety_status"],
-        "botResponse": bot_response,
-        "aiSuggestion": rag_context["technique"],
+        "botResponse": humanized["response"],
+        "quickReplies": humanized["follow_up_suggestions"],
+        "aiSuggestion": humanized["technique_used"],
         "retrievedSourceId": rag_context["source_id"],
+        "retrievedSourceIds": rag_context.get("source_ids", []),
         "sentimentLabel": text_result["sentiment_label"],
         "confidenceScore": text_result["confidence_score"],
         "visionEngine": vision_result.get("engine", "None"),

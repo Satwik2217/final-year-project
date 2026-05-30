@@ -3,15 +3,20 @@ const router = express.Router();
 const Session = require('../models/Session');
 const Message = require('../models/Message');
 const EmotionLog = require('../models/EmotionLog');
+const User = require('../models/User');
 const protect = require('../middleware/authMiddleware');
 const { analyzeWithAI } = require('../services/aiService');
 
 function buildMetrics(emotionLog, aiResult) {
+  const detected = aiResult?.detectedEmotions || {};
   return {
     detectedExpression: aiResult?.textEmotion || emotionLog.textEmotion,
     actionUnits: aiResult?.actionUnits || emotionLog.actionUnits || 'None',
     cognitiveDistortion: aiResult?.cognitiveDistortion || emotionLog.cognitiveDistortion,
     contradictionDetected: aiResult?.contradictionDetected ?? emotionLog.contradictionDetected,
+    contradictionType: aiResult?.contradictionType || null,
+    textEmotionHuman: detected.text_emotion_human || null,
+    facialEmotionHuman: detected.facial_emotion_human || null,
     safetyStatus: aiResult?.safetyStatus || (emotionLog.severityScore >= 8 ? 'Alert' : 'Secure'),
     safetyTriggered: aiResult?.safetyTriggered || false,
     facialEmotion: aiResult?.facialEmotion || emotionLog.facialEmotion,
@@ -19,8 +24,14 @@ function buildMetrics(emotionLog, aiResult) {
   };
 }
 
+function buildWelcomeMessage(userName) {
+  const name = userName?.split(' ')[0] || 'there';
+  return `Hey ${name}, I'm NeuroWell — your wellness companion.\n\nI'm not here to lecture or diagnose. I'm here to listen, remember what you share across sessions, and walk through things with you at your pace.\n\nHow are you really feeling today? You can be honest — there's no wrong answer.`;
+}
+
 router.post('/', protect, async (req, res) => {
   try {
+    const user = await User.findById(req.user.userId).select('name');
     const session = new Session({
       userId: req.user.userId,
       sessionTitle: req.body.sessionTitle || 'Therapy Session',
@@ -30,7 +41,7 @@ router.post('/', protect, async (req, res) => {
     const welcome = new Message({
       sessionId: session._id,
       sender: 'ai',
-      text: 'Hello! Welcome back to NeuroWell. I have access to your longitudinal emotional profile. How are you feeling today?',
+      text: buildWelcomeMessage(user?.name),
     });
     await welcome.save();
 
@@ -75,15 +86,29 @@ router.post('/:id/messages', protect, async (req, res) => {
       return res.status(400).json({ message: 'Message text is required' });
     }
 
-    const sessionHistory = await EmotionLog.find({ userId: req.user.userId, sessionId: session._id })
+    const user = await User.findById(req.user.userId).select('name');
+
+    const priorMessages = await Message.find({ sessionId: session._id })
+      .sort({ createdAt: 1 })
+      .limit(12)
+      .lean();
+
+    const conversationMessages = priorMessages.map((m) => ({
+      sender: m.sender,
+      text: m.text,
+    }));
+
+    const sessionHistory = await EmotionLog.find({ userId: req.user.userId })
       .sort({ createdAt: -1 })
-      .limit(5)
+      .limit(8)
       .lean();
 
     const aiResult = await analyzeWithAI({
       text: text.trim(),
       imageBase64,
       sessionHistory,
+      conversationMessages,
+      userName: user?.name || 'User',
     });
 
     const userMessage = new Message({
@@ -99,7 +124,7 @@ router.post('/:id/messages', protect, async (req, res) => {
       sessionId: session._id,
       sender: 'ai',
       text: aiResult.botResponse,
-      aiSuggestion: `${aiResult.aiSuggestion} (RAG: ${aiResult.retrievedSourceId})`,
+      aiSuggestion: `${aiResult.aiSuggestion} · RAG: ${aiResult.retrievedSourceId}`,
     });
     await aiMessage.save();
 
@@ -112,8 +137,8 @@ router.post('/:id/messages', protect, async (req, res) => {
       severityScore: aiResult.severityScore,
       cognitiveDistortion: aiResult.cognitiveDistortion,
       contradictionDetected: aiResult.contradictionDetected,
+      actionUnits: aiResult.actionUnits,
     });
-    emotionLog.actionUnits = aiResult.actionUnits;
     await emotionLog.save();
 
     if (aiResult.cognitiveDistortion !== 'None') {
@@ -127,6 +152,7 @@ router.post('/:id/messages', protect, async (req, res) => {
       emotionLog,
       metrics: buildMetrics(emotionLog, aiResult),
       safetyTriggered: aiResult.safetyTriggered,
+      quickReplies: aiResult.quickReplies || [],
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

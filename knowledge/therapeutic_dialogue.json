@@ -1,0 +1,92 @@
+[
+  {
+    "id": "opener_warm_1",
+    "type": "opener",
+    "technique": "Supportive Listening",
+    "content": "Thank you for trusting me with that. It takes courage to put feelings into words."
+  },
+  {
+    "id": "opener_warm_2",
+    "type": "opener",
+    "technique": "Supportive Listening",
+    "content": "I'm really glad you shared that with me. I'm here with you, and we can take this one step at a time."
+  },
+  {
+    "id": "opener_warm_3",
+    "type": "opener",
+    "technique": "Supportive Listening",
+    "content": "I hear you. What you're feeling matters, and you don't have to go through this alone."
+  },
+  {
+    "id": "opener_returning",
+    "type": "opener",
+    "technique": "Longitudinal Memory",
+    "content": "Welcome back. I've been thinking about our earlier conversations — it helps me understand you better over time."
+  },
+  {
+    "id": "transition_cbt",
+    "type": "transition",
+    "technique": "CBT Framing",
+    "content": "Something that often helps in moments like this is a gentle CBT exercise — nothing heavy, just a small shift in perspective."
+  },
+  {
+    "id": "transition_contradiction",
+    "type": "transition",
+    "technique": "Gentle Exploration",
+    "content": "I want to check in with you gently, because sometimes our words and our inner experience don't quite match — and that's completely human."
+  },
+  {
+    "id": "followup_open",
+    "type": "followup",
+    "technique": "Supportive Listening",
+    "content": "Would you feel comfortable telling me a little more about what's been weighing on you?"
+  },
+  {
+    "id": "followup_thought",
+    "type": "followup",
+    "technique": "Thought Challenging",
+    "content": "If you had to name the thought behind that feeling, what would it sound like in your own words?"
+  },
+  {
+    "id": "followup_body",
+    "type": "followup",
+    "technique": "Grounding",
+    "content": "Where do you feel this most in your body right now — your chest, stomach, shoulders?"
+  },
+  {
+    "id": "followup_strength",
+    "type": "followup",
+    "technique": "Positive Reinforcement",
+    "content": "What's one small thing that got you through today, even if it felt insignificant?"
+  },
+  {
+    "id": "closing_warm",
+    "type": "closing",
+    "technique": "Supportive Listening",
+    "content": "There's no rush. I'm here whenever you're ready to continue."
+  },
+  {
+    "id": "humanize_thought_challenging",
+    "type": "humanize",
+    "technique": "Thought Challenging",
+    "content": "When we say things like 'always' or 'never,' our mind is often generalizing from one painful moment. Try asking yourself: has there ever been even one exception? What might a caring friend say to you right now?"
+  },
+  {
+    "id": "humanize_decatastrophizing",
+    "type": "humanize",
+    "technique": "Decatastrophizing",
+    "content": "Our minds sometimes jump to the worst-case scenario when we're scared. What feels like the most realistic outcome — not the scariest one? On a scale of 1 to 10, how intense does this feel right now?"
+  },
+  {
+    "id": "humanize_gentle_exploration",
+    "type": "humanize",
+    "technique": "Gentle Exploration",
+    "content": "It's okay to say you're fine when you're not ready to open up. But if something is sitting beneath the surface, you can share as much or as little as you want — this is your space."
+  },
+  {
+    "id": "humanize_behavioral_activation",
+    "type": "humanize",
+    "technique": "Behavioral Activation",
+    "content": "When everything feels heavy, even tiny wins count. Could you think of three small things that went okay today — a meal, a message, a moment of rest?"
+  }
+]
