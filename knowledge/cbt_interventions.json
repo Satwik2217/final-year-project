@@ -1,0 +1,72 @@
+[
+  {
+    "id": "overgeneralization",
+    "distortion": "Overgeneralization / All-or-Nothing Thinking",
+    "keywords": ["always", "never", "everything", "nothing", "everyone", "no one"],
+    "technique": "Thought Challenging",
+    "content": "When we use words like 'always' or 'never', we often overgeneralize from one event. Ask yourself: Can you think of even one exception? What would a friend say about this situation? Try replacing absolute words with more balanced language such as 'sometimes' or 'in this situation'."
+  },
+  {
+    "id": "catastrophizing",
+    "distortion": "Catastrophizing",
+    "keywords": ["worst", "disaster", "ruined", "can't handle", "fall apart", "terrible"],
+    "technique": "Decatastrophizing",
+    "content": "Catastrophizing means jumping to the worst possible outcome. Pause and ask: What is the most likely outcome? What evidence supports and contradicts the worst case? What coping strategies have helped you before? Rate the situation from 1-10 — often the realistic rating is lower than it first feels."
+  },
+  {
+    "id": "mind_reading",
+    "distortion": "Mind Reading",
+    "keywords": ["they think", "everyone thinks", "judging me", "they hate", "they don't care"],
+    "technique": "Evidence Examination",
+    "content": "Mind reading is assuming you know what others think without evidence. List the facts you actually know versus what you are assuming. Could there be alternative explanations for their behavior? Consider checking in with someone you trust rather than assuming the worst."
+  },
+  {
+    "id": "emotional_reasoning",
+    "distortion": "Emotional Reasoning",
+    "keywords": ["i feel so", "feels like", "must be true because i feel"],
+    "technique": "Cognitive Restructuring",
+    "content": "Emotional reasoning means believing something is true because it feels true. Feelings are valid signals, but they are not always accurate facts. Try separating 'I feel anxious' from 'Something bad will definitely happen.' What objective evidence do you have right now?"
+  },
+  {
+    "id": "should_statements",
+    "distortion": "Should Statements",
+    "keywords": ["should", "must", "have to", "ought to", "shouldn't"],
+    "technique": "Flexible Thinking",
+    "content": "Rigid 'should' statements create unnecessary pressure. Try reframing: instead of 'I should be perfect,' try 'I prefer to do my best, and I can learn from mistakes.' What would you tell a close friend who held themselves to the same standard?"
+  },
+  {
+    "id": "negative_filter",
+    "distortion": "Mental Filter / Discounting Positives",
+    "keywords": ["only bad", "nothing good", "failed", "messed up", "worthless"],
+    "technique": "Behavioral Activation",
+    "content": "When we filter out positives, we only see what went wrong. Write down three small things that went okay today, even if they seem minor. Behavioral activation — doing one small meaningful activity — can help shift your focus and improve mood gradually."
+  },
+  {
+    "id": "general_support_negative",
+    "distortion": "None",
+    "keywords": ["sad", "anxious", "stressed", "worried", "overwhelmed", "lonely"],
+    "technique": "Supportive Listening",
+    "content": "It sounds like you are going through a difficult time. Your feelings are valid. Would it help to name what happened just before these feelings started? Sometimes identifying the trigger is the first step toward understanding and managing the emotion."
+  },
+  {
+    "id": "general_support_positive",
+    "distortion": "None",
+    "keywords": ["happy", "good", "better", "grateful", "okay", "fine"],
+    "technique": "Positive Reinforcement",
+    "content": "Thank you for sharing how you are feeling. Noticing moments when things feel okay or better is an important part of emotional awareness. What has helped you feel this way today?"
+  },
+  {
+    "id": "contradiction_empathy",
+    "distortion": "Emotional Masking",
+    "keywords": ["fine", "okay", "good", "nothing wrong"],
+    "technique": "Gentle Exploration",
+    "content": "I notice a difference between your words and what your expression may be showing. It is okay if you are not ready to share everything. Many people say they are fine when they are hurting inside. You are in a safe space here — would you like to talk about what is really on your mind?"
+  },
+  {
+    "id": "crisis_safety",
+    "distortion": "Crisis",
+    "keywords": ["suicide", "kill myself", "end my life", "want to die", "self harm", "hurt myself"],
+    "technique": "Safety Escalation",
+    "content": "I hear that you are in significant pain right now, and I want you to know you do not have to face this alone. Please reach out immediately: Tele-MANAS (India) 14416, iCall 9152987821, Vandrevala Foundation 1860-2662-345. If you are in immediate danger, call emergency services. Your life matters."
+  }
+]

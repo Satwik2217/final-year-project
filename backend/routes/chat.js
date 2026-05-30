@@ -1,88 +1,45 @@
 const express = require('express');
 const router = express.Router();
-const { spawn } = require('child_process');
-const path = require('path');
-const SessionLog = require('../models/SessionLog');
+const SessionLog = require('../models/SessionLog'); 
+const protect = require('../middleware/authMiddleware'); 
 
-// API GATEWAY: Processes text through the real BERT Python AI model
-router.post('/analyze', async (req, res) => {
-  const { userId, userText } = req.body;
+// 1. SAVE CHAT ENTRY: Securely links an individual exchange to the logged-in user
+router.post('/log-message', protect, async (req, res) => {
+  try {
+    const { 
+      userText, 
+      botResponse, 
+      detectedExpression, 
+      actionUnits, 
+      cognitiveDistortion, 
+      contradictionDetected 
+    } = req.body;
 
-  if (!userText) {
-    return res.status(400).json({ error: "No text provided for analysis." });
+    // req.user.userId is pulled straight from the decrypted JWT token by the middleware
+    const newChatEntry = new SessionLog({
+      userId: req.user.userId, 
+      userText,
+      botResponse,
+      detectedExpression,
+      actionUnits,
+      cognitiveDistortion,
+      contradictionDetected
+    });
+
+    await newChatEntry.save();
+    res.status(201).json({ message: "Chat interaction saved securely!", entry: newChatEntry });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
-
-  // Define the exact path to your Python script inside the ai_engine folder
-  const scriptPath = path.join(__dirname, '../../ai_engine/text_brain.py');
-
-  // Spawn a background system process to execute: python text_brain.py "userText"
-  const pythonProcess = spawn('python', [scriptPath, userText]);
-
-  let aiDataStr = '';
-
-  // ✅ Capture Python stdout
-  pythonProcess.stdout.on('data', (data) => {
-    aiDataStr += data.toString();
-  });
-
-  // ✅ Capture Python stderr (newly added)
-  pythonProcess.stderr.on('data', (data) => {
-    console.error("Python error:", data.toString());
-  });
-
-  // Handle data collection completion
-  pythonProcess.on('close', async (code) => {
-    try {
-      const cleanData = aiDataStr.trim();
-
-      if (!cleanData) {
-        throw new Error("Python script returned an empty output stream.");
-      }
-
-      const parsedAIResult = JSON.parse(cleanData);
-
-      // Create an empathetic therapeutic response baseline dynamically based on BERT analysis values
-      let botTherapyResponse = "Thank you for sharing that with me. I've noted down your emotional baseline state.";
-      
-      if (parsedAIResult.cognitiveDistortion !== "None") {
-        botTherapyResponse = `I notice some patterns of "${parsedAIResult.cognitiveDistortion}" in your statement. Let's look at this closely together. Is it absolutely true that things always happen this way?`;
-      } else if (parsedAIResult.sentiment_label === "NEGATIVE") {
-        botTherapyResponse = "It sounds like you're carrying a heavy weight right now. I'm here to listen. Can you tell me more about what's bringing up these feelings?";
-      }
-
-      // Automatically store this real interaction into your MongoDB Atlas Cloud database
-      const newLog = new SessionLog({
-        userId: userId || "000000000000000000000000", // Fallback if no user is logged in
-        userText: userText,
-        botResponse: botTherapyResponse,
-        detectedExpression: parsedAIResult.sentiment_label === "NEGATIVE" ? "Distressed" : "Stable Mood",
-        cognitiveDistortion: parsedAIResult.cognitiveDistortion,
-        contradictionDetected: false
-      });
-      await newLog.save();
-
-      // Return the combined AI metrics and text back up to React!
-      res.status(200).json({
-        botResponse: botTherapyResponse,
-        aiMetrics: parsedAIResult
-      });
-
-    } catch (err) {
-      console.error("Bridge Error:", err);
-      res.status(500).json({ 
-        error: "Failed to process text through the AI neural model layer.", 
-        details: aiDataStr 
-      });
-    }
-  });
 });
 
-// Older logging paths kept functional just in case
-router.post('/log', async (req, res) => {
+// 2. FETCH HISTORY: Retrieves ONLY the active user's chat history data
+router.get('/history', protect, async (req, res) => {
   try {
-    const newLog = new SessionLog(req.body);
-    await newLog.save();
-    res.status(201).json({ message: "Saved successfully", log: newLog });
+    // MongoDB filters out all entries that do not match this user's unique ID
+    const userChats = await SessionLog.find({ userId: req.user.userId }).sort({ timestamp: -1 });
+    
+    res.status(200).json(userChats);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

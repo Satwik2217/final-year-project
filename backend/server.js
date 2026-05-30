@@ -14,6 +14,8 @@ app.use(express.json());
 // Import Routes
 const authRoutes = require('./routes/auth');
 const chatRoutes = require('./routes/chat');
+const sessionRoutes = require('./routes/sessions');
+const analyticsRoutes = require('./routes/analytics');
 
 // Connect to MongoDB Atlas Cloud
 const mongoURI = process.env.MONGO_URI;
@@ -24,6 +26,8 @@ mongoose.connect(mongoURI)
 // Link Routes to URL endpoints
 app.use('/api/auth', authRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/sessions', sessionRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Simple baseline test route
 app.get('/api/test', (req, res) => {

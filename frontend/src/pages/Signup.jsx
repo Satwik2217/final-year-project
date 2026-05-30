@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_URL } from '../api/client';
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -7,29 +8,29 @@ export default function Signup() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const handleSignupSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess('');
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/register', {
+      const response = await fetch(`${API_URL}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
+        body: JSON.stringify({ name, email, password }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        // Registration successful! Save their info and pass to dashboard
-        localStorage.setItem('userId', data.userId);
-        localStorage.setItem('userName', name);
-        navigate('/dashboard');
+        setSuccess('Account created! Please sign in.');
+        setTimeout(() => navigate('/login'), 1500);
       } else {
         setError(data.message || 'Something went wrong');
       }
-    } catch (err) {
+    } catch {
       setError('Cannot connect to the backend server.');
     }
   };
@@ -45,6 +46,7 @@ export default function Signup() {
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-4 shadow-sm border border-slate-200/80 sm:rounded-2xl sm:px-10">
           {error && <div className="mb-4 text-sm text-red-600 bg-red-50 p-2.5 rounded-xl border border-red-200">{error}</div>}
+          {success && <div className="mb-4 text-sm text-emerald-700 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200">{success}</div>}
           
           <form className="space-y-6" onSubmit={handleSignupSubmit}>
             <div>
