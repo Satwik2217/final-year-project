@@ -15,27 +15,30 @@ router.post('/analyze', async (req, res) => {
   // Define the exact path to your Python script inside the ai_engine folder
   const scriptPath = path.join(__dirname, '../../ai_engine/text_brain.py');
 
-  // Spawn a background system process to execute: py text_brain.py "userText"
-  const pythonProcess = spawn('py', [scriptPath, userText]);
+  // Spawn a background system process to execute: python text_brain.py "userText"
+  const pythonProcess = spawn('python', [scriptPath, userText]);
 
   let aiDataStr = '';
 
-  // Gather the data text stream flowing out of Python's output
+  // ✅ Capture Python stdout
   pythonProcess.stdout.on('data', (data) => {
     aiDataStr += data.toString();
+  });
+
+  // ✅ Capture Python stderr (newly added)
+  pythonProcess.stderr.on('data', (data) => {
+    console.error("Python error:", data.toString());
   });
 
   // Handle data collection completion
   pythonProcess.on('close', async (code) => {
     try {
-      // Clean up any stray spaces or invisible line breaks from Python's terminal output
       const cleanData = aiDataStr.trim();
 
       if (!cleanData) {
         throw new Error("Python script returned an empty output stream.");
       }
 
-      // FIXED: Direct parse since Python is now outputting ONLY the clean raw JSON string
       const parsedAIResult = JSON.parse(cleanData);
 
       // Create an empathetic therapeutic response baseline dynamically based on BERT analysis values
