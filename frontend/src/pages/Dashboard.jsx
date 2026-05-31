@@ -12,6 +12,7 @@ import ContradictionInsight from '../components/ContradictionInsight';
 
 const DEFAULT_ANALYTICS = {
   detectedExpression: 'Awaiting input',
+  emotionSummary: '',
   actionUnits: 'None',
   cognitiveDistortion: 'None',
   contradictionDetected: false,
@@ -233,6 +234,7 @@ export default function Dashboard() {
       if (data.metrics) {
         setAnalytics({
           detectedExpression: data.metrics.detectedExpression,
+          emotionSummary: data.metrics.emotionSummary || '',
           actionUnits: data.metrics.actionUnits,
           cognitiveDistortion: data.metrics.cognitiveDistortion,
           contradictionDetected: data.metrics.contradictionDetected,
@@ -374,6 +376,11 @@ export default function Dashboard() {
               <span className="text-slate-500">Text Affect:</span>
               <span className="text-teal-400">{analytics.detectedExpression}</span>
             </div>
+            {analytics.emotionSummary && (
+              <p className="text-[10px] text-slate-500 leading-relaxed pt-1 border-t border-slate-800/60">
+                {analytics.emotionSummary}
+              </p>
+            )}
             <div className="flex justify-between">
               <span className="text-slate-500">Facial Affect:</span>
               <span className="text-blue-400">{analytics.facialEmotion}</span>
@@ -461,7 +468,7 @@ export default function Dashboard() {
                   <p className="text-[11px] text-slate-500 pl-12">Reading your words & expression…</p>
                 )}
                 {typingStage === 'composing' && (
-                  <p className="text-[11px] text-slate-500 pl-12">Thinking…</p>
+                  <p className="text-[11px] text-slate-500 pl-12">Understanding how you're feeling…</p>
                 )}
               </div>
             )}

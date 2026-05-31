@@ -21,6 +21,12 @@ const messageSchema = new mongoose.Schema({
   facialEmotion: {
     type: String,
   },
+  emotionSummary: {
+    type: String,
+  },
+  cognitiveDistortion: {
+    type: String,
+  },
   aiSuggestion: {
     type: String,
   },

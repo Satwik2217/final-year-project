@@ -12,6 +12,7 @@ function buildMetrics(emotionLog, aiResult) {
   const detected = aiResult?.detectedEmotions || {};
   return {
     detectedExpression: aiResult?.textEmotion || emotionLog.textEmotion,
+    emotionSummary: aiResult?.emotionSummary || emotionLog.emotionSummary,
     actionUnits: aiResult?.actionUnits || emotionLog.actionUnits || 'None',
     cognitiveDistortion: aiResult?.cognitiveDistortion || emotionLog.cognitiveDistortion,
     contradictionDetected: aiResult?.contradictionDetected ?? emotionLog.contradictionDetected,
@@ -126,11 +127,14 @@ router.post('/:id/messages', protect, async (req, res) => {
     const conversationMessages = priorMessages.map((m) => ({
       sender: m.sender,
       text: m.text,
+      textEmotion: m.textEmotion,
+      facialEmotion: m.facialEmotion,
     }));
 
     const sessionHistory = await EmotionLog.find({ userId: req.user.userId })
       .sort({ createdAt: -1 })
-      .limit(8)
+      .limit(12)
+      .select('userText textEmotion facialEmotion emotionSummary cognitiveDistortion contradictionDetected createdAt')
       .lean();
 
     const aiResult = await analyzeWithAI({
@@ -147,6 +151,8 @@ router.post('/:id/messages', protect, async (req, res) => {
       text: text.trim(),
       textEmotion: aiResult.textEmotion,
       facialEmotion: aiResult.facialEmotion,
+      emotionSummary: aiResult.emotionSummary,
+      cognitiveDistortion: aiResult.cognitiveDistortion,
     });
     await userMessage.save();
 
@@ -154,7 +160,7 @@ router.post('/:id/messages', protect, async (req, res) => {
       sessionId: session._id,
       sender: 'ai',
       text: aiResult.botResponse,
-      aiSuggestion: `${aiResult.aiSuggestion} · RAG: ${aiResult.retrievedSourceId}`,
+      aiSuggestion: aiResult.aiSuggestion,
     });
     await aiMessage.save();
 
@@ -162,17 +168,23 @@ router.post('/:id/messages', protect, async (req, res) => {
       userId: req.user.userId,
       sessionId: session._id,
       messageId: userMessage._id,
+      userText: text.trim(),
       textEmotion: aiResult.textEmotion,
       facialEmotion: aiResult.facialEmotion,
+      emotionSummary: aiResult.emotionSummary || `${aiResult.textEmotion} / ${aiResult.facialEmotion}`,
+      combinedEmotion: aiResult.emotionSummary,
+      sentimentLabel: aiResult.sentimentLabel,
+      confidenceScore: aiResult.confidenceScore,
       severityScore: aiResult.severityScore,
       cognitiveDistortion: aiResult.cognitiveDistortion,
       contradictionDetected: aiResult.contradictionDetected,
+      contradictionType: aiResult.contradictionType || null,
       actionUnits: aiResult.actionUnits,
     });
     await emotionLog.save();
 
     if (aiResult.cognitiveDistortion !== 'None') {
-      session.moodSummary = aiResult.cognitiveDistortion;
+      session.moodSummary = aiResult.emotionSummary || aiResult.cognitiveDistortion;
       await session.save();
     }
 

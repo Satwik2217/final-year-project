@@ -1,5 +1,8 @@
 from typing import Optional
 
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -32,7 +35,13 @@ class AnalyzeRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "online", "engine": "NeuroWell Humanized RAG Engine v1.1"}
+    import os
+    llm = "gemini" if (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")) else "fallback"
+    return {
+        "status": "online",
+        "engine": "NeuroWell Humanized RAG Engine v1.2",
+        "llm_mode": llm,
+    }
 
 
 @app.post("/analyze")

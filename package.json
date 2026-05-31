@@ -1,0 +1,14 @@
+{
+  "name": "neurowell",
+  "version": "1.0.0",
+  "description": "NeuroWell — multimodal AI mental health chatbot",
+  "scripts": {
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server && pip install -r ai/deepface/requirements.txt && pip install -r ai/albert/requirements.txt && pip install -r ai/rag/requirements.txt",
+    "start:deepface": "python ai/deepface/app.py",
+    "seed:rag": "python ai/rag/seed_chromadb.py",
+    "start": "concurrently -n client,server,deepface,albert -c blue,green,yellow,magenta \"npm run start --prefix client\" \"npm run start --prefix server\" \"python ai/deepface/app.py\" \"python ai/albert/app.py\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}

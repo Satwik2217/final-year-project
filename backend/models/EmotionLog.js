@@ -15,6 +15,9 @@ const emotionLogSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Message',
   },
+  userText: {
+    type: String,
+  },
   textEmotion: {
     type: String,
     default: 'pending',
@@ -22,6 +25,18 @@ const emotionLogSchema = new mongoose.Schema({
   facialEmotion: {
     type: String,
     default: 'pending',
+  },
+  emotionSummary: {
+    type: String,
+  },
+  combinedEmotion: {
+    type: String,
+  },
+  sentimentLabel: {
+    type: String,
+  },
+  confidenceScore: {
+    type: Number,
   },
   severityScore: {
     type: Number,
@@ -38,6 +53,9 @@ const emotionLogSchema = new mongoose.Schema({
   contradictionDetected: {
     type: Boolean,
     default: false,
+  },
+  contradictionType: {
+    type: String,
   },
   createdAt: {
     type: Date,

@@ -8,7 +8,7 @@ router.get('/emotion-history', protect, async (req, res) => {
     const logs = await EmotionLog.find({ userId: req.user.userId })
       .sort({ createdAt: -1 })
       .limit(30)
-      .select('textEmotion facialEmotion cognitiveDistortion severityScore contradictionDetected createdAt');
+      .select('userText textEmotion facialEmotion emotionSummary cognitiveDistortion severityScore contradictionDetected contradictionType sentimentLabel createdAt');
 
     res.json(logs.reverse());
   } catch (err) {

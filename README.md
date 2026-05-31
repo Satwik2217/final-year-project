@@ -1,110 +1,133 @@
-# NeuroWell — Beyond Generative AI
+# NeuroWell — Multimodal AI Mental Health Chatbot
 
-Final Year Project · B.Tech CSE · United Institute of Technology, Prayagraj
-
-Multimodal mental wellness companion with **text + facial emotion analysis**, **CBT cognitive distortion detection**, **contradiction-aware empathy**, **RAG-grounded interventions**, **safety escalation**, and **longitudinal MongoDB memory**.
+NeuroWell is a full-stack web application that combines **React**, **Express**, **MongoDB**, **Gemini AI (streaming)**, **DeepFace** facial emotion detection, **ALBERT** cognitive distortion detection, and **ChromaDB RAG** for grounded CBT therapy responses.
 
 ## Architecture
 
 ```
-frontend (React + Vite)  →  backend (Express + MongoDB)  →  ai_engine (FastAPI + Python)
-                                    ↓
-                              EmotionLog / Session / Message
-                                    ↓
-                              ChromaDB (RAG knowledge base)
+client/          React.js frontend          → port 3000
+server/          Node.js Express backend    → port 5000
+ai/deepface/     Flask DeepFace API         → port 5001
+ai/albert/       Flask ALBERT + RAG API     → port 5002
+ai/rag/          ChromaDB + sentence-transformers embeddings
+knowledge/       CBT therapy scripts (JSON)
 ```
-
-### Synopsis pipeline (Chapter 3)
-
-| Step | Implementation |
-|------|----------------|
-| 3.1 User input | React dashboard + optional webcam (consent modal) |
-| 3.2 Dual-channel | DistilBERT text + DeepFace/OpenCV vision |
-| 3.3 Contradiction | `services/synthesis.py` |
-| 3.4 CBT intervention | RAG over `knowledge/cbt_interventions.json` |
-| 3.5 Safety check | Crisis keywords → helpline modal |
-| 3.6 Persistence | MongoDB sessions, messages, emotion logs |
 
 ## Prerequisites
 
-- Node.js 18+
-- Python 3.10+
-- MongoDB Atlas (or local MongoDB)
+- **Node.js** 18+
+- **Python** 3.10+
+- **MongoDB** running locally or Atlas URI
+- **Gemini API key** from [Google AI Studio](https://aistudio.google.com/apikey)
 
-## Setup
-
-### 1. Backend
+## Installation
 
 ```bash
-cd backend
-npm install
-cp .env.example .env
-# Edit .env with MONGO_URI and JWT_SECRET
+# 1. Install all dependencies (root, client, server, Python)
+npm run install:all
+
+# 2. Seed ChromaDB with CBT scripts
+npm run seed:rag
+
+# 3. Configure environment variables
+cp server/.env.example server/.env
+cp client/.env.example client/.env
+# Edit server/.env — set MONGO_URI, JWT_SECRET, GEMINI_API_KEY
+```
+
+### server/.env
+
+```
+PORT=5000
+MONGO_URI=mongodb://127.0.0.1:27017/neurowell
+JWT_SECRET=your_long_random_secret
+GEMINI_API_KEY=your_gemini_api_key
+DEEPFACE_API_URL=http://localhost:5001
+ALBERT_API_URL=http://localhost:5002
+```
+
+### client/.env
+
+```
+REACT_APP_API_URL=http://localhost:5000
+```
+
+## Run Everything
+
+From the project root:
+
+```bash
 npm start
 ```
 
-Runs on **http://localhost:5000**
+This starts all four services concurrently:
+- React → http://localhost:3000
+- Express → http://localhost:5000
+- DeepFace Flask → http://localhost:5001
+- ALBERT Flask → http://localhost:5002
 
-### 2. AI Engine (Python)
+## Features
 
-```bash
-cd ai_engine
-python -m venv venv
-venv\Scripts\activate        # Windows
-pip install -r requirements.txt
+| Feature | Description |
+|---------|-------------|
+| JWT Auth | Register/login with bcrypt-hashed passwords |
+| Gemini Streaming | Word-by-word AI responses via SSE |
+| Webcam Emotion | DeepFace + OpenCV, frame every 3s with consent toggle |
+| ALBERT Distortion | Cognitive distortion detection via HuggingFace |
+| RAG Grounding | ChromaDB + all-MiniLM-L6-v2 retrieves CBT scripts |
+| Contradiction | Detects when text says "fine" but face shows sadness |
+| Safety Layer | Crisis keywords bypass Gemini, show helplines immediately |
+| Emotion Dashboard | Recharts line chart of emotional trends |
+| Graceful Fallback | Works text-only if DeepFace/ALBERT/Gemini unavailable |
 
-# Optional — better facial emotion (heavy):
-# pip install deepface
+## API Endpoints
 
-python main.py
+### Auth
+- `POST /api/auth/register` — create account
+- `POST /api/auth/login` — get JWT token
+
+### Sessions (authenticated)
+- `GET /api/sessions` — list user sessions
+- `POST /api/sessions` — create session
+- `GET /api/sessions/:id/messages` — get messages
+- `POST /api/sessions/:id/messages` — send message (non-streaming)
+- `POST /api/sessions/:id/messages/stream` — send message with Gemini SSE streaming
+- `POST /api/sessions/:id/face` — analyze webcam frame
+
+### Analytics
+- `GET /api/analytics/emotions` — emotion history for dashboard
+
+## Crisis Helplines (India)
+
+- **iCall:** 9152987821
+- **Vandrevala Foundation:** 1860-2662-345
+- **Tele-MANAS:** 14416
+
+## Project Structure
+
+```
+Final-Year-Project Web App/
+├── client/                 React frontend
+├── server/                 Express backend
+├── ai/
+│   ├── deepface/           Facial emotion Flask API
+│   ├── albert/             ALBERT distortion Flask API
+│   └── rag/                ChromaDB setup + retrieval
+├── knowledge/              CBT intervention JSON
+├── package.json            Root scripts (concurrently)
+└── README.md
 ```
 
-Runs on **http://localhost:8000**
+## Troubleshooting
 
-First run downloads DistilBERT and embedding models (~500MB).
+| Issue | Fix |
+|-------|-----|
+| MongoDB connection failed | Start MongoDB or update `MONGO_URI` |
+| DeepFace slow on first run | First request downloads models — wait ~30s |
+| ALBERT slow on first run | Downloads `textattack/albert-base-v2-snli-mnli` |
+| Gemini errors | Verify `GEMINI_API_KEY` in `server/.env` |
+| Webcam not working | Enable consent toggle; allow browser camera permission |
 
-### 3. Frontend
+## License
 
-```bash
-cd frontend
-npm install
-cp .env.example .env
-npm run dev
-```
-
-Runs on **http://localhost:5173**
-
-## Environment variables
-
-**backend/.env**
-```
-MONGO_URI=...
-JWT_SECRET=...
-AI_SERVICE_URL=http://localhost:8000
-```
-
-**frontend/.env**
-```
-VITE_API_URL=http://localhost:5000
-```
-
-## API overview
-
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/auth/register` | Create account |
-| `POST /api/auth/login` | JWT login |
-| `GET /api/sessions` | List therapy sessions |
-| `POST /api/sessions/:id/messages` | Send message + multimodal AI analysis |
-| `GET /api/analytics/emotion-history` | Longitudinal mood data |
-| `POST http://localhost:8000/analyze` | Python AI pipeline |
-
-## Team
-
-Satwik Mishra · Parikshit Pandey · Rishabh Sharma · Ayush Mishra
-
-Guided by Dr. Ankita Srivastava
-
-## Disclaimer
-
-NeuroWell is an academic research prototype. It is **not** a replacement for licensed mental health care. Crisis resources: Tele-MANAS **14416**, iCall **9152987821**.
+Final Year Project — B.Tech CSE, AKTU 2025–26

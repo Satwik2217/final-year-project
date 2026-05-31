@@ -36,6 +36,9 @@ def run_pipeline(
         conversation_messages=conversation_messages or [],
         emotion_history=session_history or [],
         user_name=user_name,
+        action_units=vision_result["action_units"],
+        sentiment_label=text_result["sentiment_label"],
+        confidence_score=text_result["confidence_score"],
     )
 
     return {
@@ -47,6 +50,7 @@ def run_pipeline(
         "contradictionType": contradiction.get("contradiction_type"),
         "contradictionMessage": contradiction["contradiction_message"],
         "detectedEmotions": contradiction.get("detected_emotions", {}),
+        "emotionSummary": humanized.get("emotion_summary", ""),
         "riskLevel": safety["risk_level"],
         "severityScore": safety["severity_score"],
         "safetyTriggered": safety["safety_triggered"],
