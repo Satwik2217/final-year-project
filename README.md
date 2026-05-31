@@ -2,7 +2,7 @@
 
 Final Year Project · B.Tech CSE · United Institute of Technology, Prayagraj
 
-Multimodal mental wellness companion with **text + facial emotion analysis**, **CBT cognitive distortion detection**, **contradiction-aware empathy**, **RAG-grounded interventions**, **safety escalation**, and **longitudinal MongoDB memory**.
+NeuroWell is the name of our final‑year project — a multimodal mental wellness companion that goes beyond generative AI. It’s designed to combine text analysis, facial emotion recognition, cognitive distortion detection, and empathetic interventions into one integrated system.
 
 ## Architecture
 
