@@ -1,6 +1,8 @@
 # NeuroWell — Multimodal AI Mental Health Chatbot
 
-NeuroWell is a full-stack web application that combines **React**, **Express**, **MongoDB**, **Gemini AI (streaming)**, **DeepFace** facial emotion detection, **ALBERT** cognitive distortion detection, and **ChromaDB RAG** for grounded CBT therapy responses.
+Final Year Project · B.Tech CSE · United Institute of Technology, Prayagraj
+
+Multimodal mental wellness companion with **text + facial emotion analysis**, **CBT cognitive distortion detection**, **contradiction-aware empathy**, **RAG-grounded interventions**, **safety escalation**, and **longitudinal MongoDB memory**.
 
 ## Architecture
 
