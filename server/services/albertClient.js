@@ -3,17 +3,49 @@ const axios = require('axios');
 
 const ALBERT_URL = process.env.ALBERT_API_URL || 'http://localhost:5002';
 
+let albertUnavailableUntil = 0;
+let albertInCooldown = false;
+
+function isAlbertAvailable() {
+  return Date.now() >= albertUnavailableUntil;
+}
+
+function markAlbertUnavailable(error) {
+  const message = String(error?.message || '').toLowerCase();
+  const isNetworkish = /timeout|ecconnrefused|econnrefused|enotfound|socket|network|503|502|504/.test(message);
+  // Keep it short: enough to stop log spam, not long enough to hide recovery.
+  const cooldownMs = isNetworkish ? 15000 : 5000;
+  if (!albertInCooldown) {
+    console.warn(`ALBERT cooldown activated for ${Math.round(cooldownMs / 1000)}s`);
+  }
+  albertInCooldown = true;
+  albertUnavailableUntil = Date.now() + cooldownMs;
+}
+
 async function analyzeDistortion(text) {
   if (!text || !text.trim()) {
     return { cognitive_distortion: 'None', confidence: 0, engine: 'ALBERT' };
+  }
+
+  if (!isAlbertAvailable()) {
+    return {
+      cognitive_distortion: keywordFallback(text),
+      confidence: 0.4,
+      engine: 'Fallback',
+      error: 'ALBERT cooldown active',
+    };
   }
 
   try {
     const { data } = await axios.post(
       `${ALBERT_URL}/analyze`,
       { text },
-      { timeout: 5000 }
+      { timeout: 7000 }
     );
+    if (albertInCooldown) {
+      console.log('ALBERT API recovered');
+      albertInCooldown = false;
+    }
     return {
       cognitive_distortion: data.cognitive_distortion || 'None',
       confidence: data.confidence || 0,
@@ -21,6 +53,7 @@ async function analyzeDistortion(text) {
     };
   } catch (error) {
     console.warn('ALBERT API unavailable, keyword fallback:', error.message);
+    markAlbertUnavailable(error);
     return {
       cognitive_distortion: keywordFallback(text),
       confidence: 0.4,
@@ -31,15 +64,23 @@ async function analyzeDistortion(text) {
 }
 
 async function retrieveRagContext(query, distortion) {
+  if (!isAlbertAvailable()) {
+    return { content: '', source_id: 'none', technique: 'Supportive Listening', source_ids: [] };
+  }
   try {
     const { data } = await axios.post(
       `${ALBERT_URL}/rag/retrieve`,
       { query, distortion },
-      { timeout: 5000 }
+      { timeout: 10000 }
     );
+    if (albertInCooldown) {
+      console.log('ALBERT RAG recovered');
+      albertInCooldown = false;
+    }
     return data;
   } catch (error) {
     console.warn('RAG retrieval unavailable:', error.message);
+    markAlbertUnavailable(error);
     return { content: '', source_id: 'none', technique: 'Supportive Listening', source_ids: [] };
   }
 }

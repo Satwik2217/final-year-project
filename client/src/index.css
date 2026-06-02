@@ -12,7 +12,35 @@
   font-family: 'Segoe UI', system-ui, sans-serif;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { 
+  box-sizing: border-box; 
+  margin: 0; 
+  padding: 0;
+  scrollbar-color: var(--accent) var(--surface2);
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+  background: var(--surface2);
+  border-radius: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 10px;
+  border: 2px solid var(--surface2);
+  transition: background 0.2s ease;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  border-color: var(--accent);
+}
 
 html, body, #root {
   height: 100%;

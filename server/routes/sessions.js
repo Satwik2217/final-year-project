@@ -9,7 +9,7 @@ const { analyzeDistortion, retrieveRagContext } = require('../services/albertCli
 const { evaluateSafety, crisisResponse } = require('../services/safetyService');
 const { detectContradiction } = require('../services/contradictionService');
 const { inferTextEmotion, buildEmotionSummary } = require('../services/promptService');
-const { streamGeminiResponse, generateGeminiResponse, streamHumanResponse, generateHumanResponse, isValidGeminiKey, humanizeReply } = require('../services/geminiService');
+const { streamGeminiResponse, generateGeminiResponse, streamHumanResponse, generateHumanResponse, isGeminiAvailable, humanizeReply } = require('../services/geminiService');
 
 const router = express.Router();
 
@@ -163,7 +163,7 @@ router.post('/:id/messages', async (req, res) => {
     let botResponse;
     const responseContext = buildResponseContext(text, req, analysis, conversationMessages);
     try {
-      if (isValidGeminiKey(process.env.GEMINI_API_KEY)) {
+      if (isGeminiAvailable()) {
         botResponse = await generateGeminiResponse(responseContext);
       } else {
         botResponse = await generateHumanResponse(responseContext);
@@ -334,7 +334,7 @@ router.post('/:id/messages/stream', async (req, res) => {
     const responseContext = buildResponseContext(text, req, analysis, conversationMessages);
 
     try {
-      const streamSource = isValidGeminiKey(process.env.GEMINI_API_KEY)
+      const streamSource = isGeminiAvailable()
         ? streamGeminiResponse(responseContext)
         : streamHumanResponse(responseContext);
 

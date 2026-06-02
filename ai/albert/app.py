@@ -102,5 +102,16 @@ def rag_retrieve():
         return jsonify({"error": f"RAG retrieval failed: {exc}", "content": "", "source_id": "error"}), 500
 
 
+def warm_up_rag():
+    """Pre-initialize RAG embedding model on startup to avoid timeout on first request."""
+    try:
+        from rag_engine import _get_collection
+        collection = _get_collection()
+        print(f"[ALBERT] RAG engine warmed up. ChromaDB has {collection.count()} documents.")
+    except Exception as e:
+        print(f"[ALBERT] Warning: RAG warmup failed: {e}")
+
+
 if __name__ == "__main__":
+    warm_up_rag()
     app.run(host="0.0.0.0", port=5002, debug=False)
