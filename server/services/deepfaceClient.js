@@ -2,9 +2,14 @@
 const axios = require('axios');
 const { spawn } = require('child_process');
 const path = require('path');
+const fs = require('fs');
 
 const DEEPFACE_URL = process.env.DEEPFACE_API_URL || 'http://localhost:5001';
 const CLI_SCRIPT = path.resolve(__dirname, '../../ai/deepface/analyze_cli.py');
+
+// Prefer the project's virtualenv python if available, otherwise fall back to `python` on PATH.
+const VENV_PY = path.resolve(__dirname, '../../ai/deepface/.venv/Scripts/python.exe');
+const PYTHON_CMD = (process.env.DEEPFACE_PYTHON || (fs.existsSync(VENV_PY) ? VENV_PY : 'python'));
 
 function normalizeResult(data, engineOverride) {
   return {
@@ -27,7 +32,7 @@ function analyzeViaHttp(imageBase64) {
 
 function analyzeViaPythonCli(imageBase64) {
   return new Promise((resolve, reject) => {
-    const py = spawn('python', [CLI_SCRIPT], {
+    const py = spawn(PYTHON_CMD, [CLI_SCRIPT], {
       cwd: path.dirname(CLI_SCRIPT),
       stdio: ['pipe', 'pipe', 'pipe'],
     });
