@@ -8,8 +8,11 @@ const DEEPFACE_URL = process.env.DEEPFACE_API_URL || 'http://localhost:5001';
 const CLI_SCRIPT = path.resolve(__dirname, '../../ai/deepface/analyze_cli.py');
 
 // Prefer the project's virtualenv python if available, otherwise fall back to `python` on PATH.
-const VENV_PY = path.resolve(__dirname, '../../ai/deepface/.venv/Scripts/python.exe');
-const PYTHON_CMD = (process.env.DEEPFACE_PYTHON || (fs.existsSync(VENV_PY) ? VENV_PY : 'python'));
+const VENV_PY_LOCAL = path.resolve(__dirname, '../../ai/deepface/.venv/Scripts/python.exe');
+const VENV_PY_ROOT = path.resolve(__dirname, '../../venv/Scripts/python.exe');
+const PYTHON_CMD = (process.env.DEEPFACE_PYTHON || 
+                   (fs.existsSync(VENV_PY_LOCAL) ? VENV_PY_LOCAL : 
+                   (fs.existsSync(VENV_PY_ROOT) ? VENV_PY_ROOT : 'python')));
 
 function normalizeResult(data, engineOverride) {
   return {
@@ -81,12 +84,24 @@ async function analyzeFace(imageBase64) {
   }
 
   try {
-    return await analyzeViaHttp(imageBase64);
+    const res = await axios.post(
+      `${DEEPFACE_URL}/analyze`,
+      { image_base_64: imageBase64, imageBase64 },
+      { timeout: 15000, validateStatus: () => true } // Accept any status code
+    );
+    
+    if (res.status === 200 && res.data && !res.data.error) {
+      return normalizeResult(res.data);
+    }
+    
+    console.warn('DeepFace HTTP returned error or non-200:', res.status, res.data?.error || 'Unknown error');
   } catch (httpErr) {
-    console.warn('DeepFace HTTP unavailable, trying Python CLI:', httpErr.message);
+    console.warn('DeepFace HTTP connection failed:', httpErr.message);
   }
 
+  // Fallback to CLI
   try {
+    console.log('Attempting DeepFace CLI fallback...');
     return await analyzeViaPythonCli(imageBase64);
   } catch (cliErr) {
     console.error('Face analysis failed (HTTP + CLI):', cliErr.message);
@@ -98,7 +113,6 @@ async function analyzeFace(imageBase64) {
     confidence: 0,
     engine: 'Offline',
     emotions: {},
-    error: 'Run from project root: npm run install:all  then  npm start',
   };
 }
 

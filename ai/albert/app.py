@@ -1,12 +1,35 @@
-# Flask API on port 5002 — ALBERT cognitive distortion detection via HuggingFace Transformers.
+# Flask API on port 5002 — BART cognitive distortion detection via HuggingFace Transformers.
 import os
+from dotenv import load_dotenv
+
+# Try to load .env from several potential locations
+env_paths = [
+    os.path.join(os.path.dirname(__file__), ".env"),
+    os.path.join(os.path.dirname(__file__), "..", "..", "server", ".env"),
+    os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+]
+for path in env_paths:
+    if os.path.exists(path):
+        load_dotenv(path)
+        break
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ['HF_HUB_DISABLE_SYMLINKS_WARNING'] = '1'
+os.environ['HF_HUB_DISABLE_TELEMETRY'] = '1'
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
+
 import sys
+import logging
+
+# Suppress Hugging Face hub warnings
+logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+logging.getLogger("transformers").setLevel(logging.ERROR)
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "rag"))
-from rag_engine import retrieve_context  # noqa: E402
+from rag_engine import retrieve_context, add_to_history  # noqa: E402
 
 app = Flask(__name__)
 CORS(app)
@@ -29,9 +52,10 @@ def get_classifier():
     if _classifier is None:
         from transformers import pipeline
 
+        # Switched from ALBERT to BART for better zero-shot accuracy
         _classifier = pipeline(
             "zero-shot-classification",
-            model="textattack/albert-base-v2-snli-mnli",
+            model="facebook/bart-large-mnli",
             device=-1,
         )
     return _classifier
@@ -55,7 +79,7 @@ def keyword_fallback(text: str) -> str:
 
 @app.get("/health")
 def health():
-    return jsonify({"status": "online", "service": "ALBERT Distortion API", "port": 5002})
+    return jsonify({"status": "online", "service": "BART Distortion API", "port": 5002})
 
 
 @app.post("/analyze")
@@ -65,7 +89,7 @@ def analyze():
         text = (data.get("text") or "").strip()
 
         if not text:
-            return jsonify({"cognitive_distortion": "None", "confidence": 0.0, "engine": "ALBERT"})
+            return jsonify({"cognitive_distortion": "None", "confidence": 0.0, "engine": "BART"})
 
         try:
             clf = get_classifier()
@@ -75,19 +99,23 @@ def analyze():
             if score < 0.25:
                 label = keyword_fallback(text)
                 score = 0.5
-        except Exception:
-            label = keyword_fallback(text)
-            score = 0.5
 
-        return jsonify(
-            {
+            return jsonify({
                 "cognitive_distortion": label,
                 "confidence": score,
-                "engine": "ALBERT",
-            }
-        )
+                "engine": "BART",
+                "scores": {l: round(float(s), 3) for l, s in zip(result["labels"], result["scores"])}
+            })
+        except Exception as e:
+            return jsonify({
+                "cognitive_distortion": keyword_fallback(text),
+                "confidence": 0.4,
+                "engine": "BART-Fallback",
+                "error": str(e)
+            })
+
     except Exception as exc:
-        return jsonify({"error": f"ALBERT analysis failed: {exc}"}), 500
+        return jsonify({"error": str(exc)}), 500
 
 
 @app.post("/rag/retrieve")
@@ -96,18 +124,37 @@ def rag_retrieve():
         data = request.get_json(silent=True) or {}
         query = data.get("query", "")
         distortion = data.get("distortion", "None")
-        context = retrieve_context(query, distortion)
-        return jsonify(context)
-    except Exception as exc:
-        return jsonify({"error": f"RAG retrieval failed: {exc}", "content": "", "source_id": "error"}), 500
+        user_id = data.get("user_id")
+        
+        result = retrieve_context(query, distortion=distortion, user_id=user_id)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.post("/rag/add")
+def rag_add():
+    try:
+        data = request.get_json(silent=True) or {}
+        user_id = data.get("user_id")
+        session_id = data.get("session_id")
+        text = data.get("text")
+        distortion = data.get("distortion", "None")
+        
+        if user_id and session_id and text:
+            add_to_history(user_id, session_id, text, distortion)
+            return jsonify({"status": "success"})
+        return jsonify({"status": "ignored", "reason": "missing data"}), 400
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 def warm_up_rag():
     """Pre-initialize RAG embedding model on startup to avoid timeout on first request."""
     try:
-        from rag_engine import _get_collection
-        collection = _get_collection()
-        print(f"[ALBERT] RAG engine warmed up. ChromaDB has {collection.count()} documents.")
+        from rag_engine import _get_collections
+        knowledge, _ = _get_collections()
+        print(f"[ALBERT] RAG engine warmed up. ChromaDB has {knowledge.count()} documents.")
     except Exception as e:
         print(f"[ALBERT] Warning: RAG warmup failed: {e}")
 

@@ -67,6 +67,7 @@ function buildGeminiContext({
   ragContext,
   sessionHistory,
   conversationMessages,
+  emotionTrend,
 }) {
   const lines = [`User message: ${userText}`];
 
@@ -74,7 +75,11 @@ function buildGeminiContext({
   lines.push(`Text emotion (inferred): ${textEmotion}`);
   lines.push(`Facial emotion: ${facialEmotion}`);
   if (actionUnits && actionUnits !== 'None') lines.push(`FACS Action Units: ${actionUnits}`);
-  lines.push(`Cognitive distortion (ALBERT): ${cognitiveDistortion}`);
+  lines.push(`Cognitive distortion (BART): ${cognitiveDistortion}`);
+
+  if (emotionTrend) {
+    lines.push(`Emotion Trend (Narrative context): ${emotionTrend}`);
+  }
 
   if (contradiction.contradictionDetected) {
     const det = contradiction.detectedEmotions || {};

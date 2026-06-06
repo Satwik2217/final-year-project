@@ -5,7 +5,7 @@ const Session = require('../models/Session');
 const Message = require('../models/Message');
 const EmotionLog = require('../models/EmotionLog');
 const { analyzeFace } = require('../services/deepfaceClient');
-const { analyzeDistortion, retrieveRagContext } = require('../services/albertClient');
+const { analyzeDistortion, retrieveRagContext, addToRagHistory } = require('../services/albertClient');
 const { evaluateSafety, crisisResponse } = require('../services/safetyService');
 const { detectContradiction } = require('../services/contradictionService');
 const { inferTextEmotion, buildEmotionSummary } = require('../services/promptService');
@@ -20,6 +20,19 @@ async function loadSessionForUser(sessionId, userId) {
 }
 
 function buildResponseContext(text, req, analysis, conversationMessages) {
+  // Calculate emotion trend for narrative payoff
+  let emotionTrend = 'Stable';
+  if (analysis.sessionHistory && analysis.sessionHistory.length > 0) {
+    const recentEmotions = analysis.sessionHistory.slice(0, 3).map(h => h.textEmotion);
+    if (recentEmotions.every(e => e === 'Distress Detected') && analysis.textEmotion === 'Positive') {
+      emotionTrend = 'Breakthrough detected (from distress to positive)';
+    } else if (recentEmotions.includes('Distress Detected') && analysis.textEmotion === 'Balanced') {
+      emotionTrend = 'Gradual stabilization';
+    } else if (recentEmotions.includes('Positive') && analysis.textEmotion === 'Distress Detected') {
+      emotionTrend = 'Recent emotional dip';
+    }
+  }
+
   return {
     userText: text.trim(),
     userName: req.user.name,
@@ -31,6 +44,7 @@ function buildResponseContext(text, req, analysis, conversationMessages) {
     ragContext: analysis.ragContext,
     sessionHistory: analysis.sessionHistory,
     conversationMessages,
+    emotionTrend,
   };
 }
 
@@ -45,7 +59,8 @@ async function buildAnalysis({ text, imageBase64, userId }) {
   const textEmotion = inferTextEmotion(text, cognitiveDistortion);
   const contradiction = detectContradiction(text, facialEmotion);
 
-  const ragContext = await retrieveRagContext(text, cognitiveDistortion);
+  // Innovation: Pass userId to retrieve past context from RAG history
+  const ragContext = await retrieveRagContext(text, cognitiveDistortion, userId);
 
   const sessionHistory = await EmotionLog.find({ userId })
     .sort({ createdAt: -1 })
@@ -154,6 +169,10 @@ router.post('/:id/messages', async (req, res) => {
     }
 
     const analysis = await buildAnalysis({ text: text.trim(), imageBase64, userId: req.user.id });
+    
+    // Innovation: Save to RAG long-term memory
+    addToRagHistory(req.user.id, session._id, text.trim(), analysis.cognitiveDistortion);
+
     const emotionSummary = buildEmotionSummary(
       analysis.textEmotion,
       analysis.facialEmotion,

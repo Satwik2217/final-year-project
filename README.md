@@ -2,7 +2,7 @@
 
 Final Year Project · B.Tech CSE · United Institute of Technology, Prayagraj
 
-Multimodal mental wellness companion with **text + facial emotion analysis**, **CBT cognitive distortion detection**, **contradiction-aware empathy**, **RAG-grounded interventions**, **safety escalation**, and **longitudinal MongoDB memory**.
+Multimodal mental wellness companion with **text + facial emotion analysis**, **BART-based zero-shot cognitive distortion detection**, **contradiction-aware empathy**, **RAG-grounded interventions (CBT knowledge + User History)**, **safety escalation**, and **longitudinal MongoDB + Vector memory**.
 
 ## Architecture
 
@@ -10,8 +10,8 @@ Multimodal mental wellness companion with **text + facial emotion analysis**, **
 client/          React.js frontend          → port 3000
 server/          Node.js Express backend    → port 5000
 ai/deepface/     Flask DeepFace API         → port 5001
-ai/albert/       Flask ALBERT + RAG API     → port 5002
-ai/rag/          ChromaDB + sentence-transformers embeddings
+ai/albert/       Flask BART + RAG API       → port 5002
+ai/rag/          ChromaDB + sentence-transformers embeddings (Knowledge + History)
 knowledge/       CBT therapy scripts (JSON)
 ```
 

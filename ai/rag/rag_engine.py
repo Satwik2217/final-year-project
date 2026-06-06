@@ -10,32 +10,41 @@ CHROMA_DIR = Path(__file__).parent / "chroma_db"
 KNOWLEDGE_FILE = Path(__file__).parent.parent.parent / "knowledge" / "cbt_interventions.json"
 
 _embedding_fn = None
-_collection = None
+_knowledge_collection = None
+_history_collection = None
 
 
-def _get_collection():
-    global _embedding_fn, _collection
-    if _collection is not None:
-        return _collection
+def _get_collections():
+    global _embedding_fn, _knowledge_collection, _history_collection
+    if _knowledge_collection is not None and _history_collection is not None:
+        return _knowledge_collection, _history_collection
 
     _embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name="all-MiniLM-L6-v2"
     )
     CHROMA_DIR.mkdir(parents=True, exist_ok=True)
     client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    _collection = client.get_or_create_collection(
+    
+    _knowledge_collection = client.get_or_create_collection(
         name="cbt_scripts",
         embedding_function=_embedding_fn,
         metadata={"hnsw:space": "cosine"},
     )
-    return _collection
+    
+    _history_collection = client.get_or_create_collection(
+        name="user_history",
+        embedding_function=_embedding_fn,
+        metadata={"hnsw:space": "cosine"},
+    )
+    
+    return _knowledge_collection, _history_collection
 
 
 def seed_knowledge(force: bool = False) -> int:
     """Load CBT JSON into ChromaDB. Returns number of documents indexed."""
-    collection = _get_collection()
-    if collection.count() > 0 and not force:
-        return collection.count()
+    knowledge, _ = _get_collections()
+    if knowledge.count() > 0 and not force:
+        return knowledge.count()
 
     if not KNOWLEDGE_FILE.exists():
         raise FileNotFoundError(f"Knowledge file not found: {KNOWLEDGE_FILE}")
@@ -43,10 +52,10 @@ def seed_knowledge(force: bool = False) -> int:
     with open(KNOWLEDGE_FILE, encoding="utf-8") as f:
         entries = json.load(f)
 
-    if force and collection.count() > 0:
-        existing = collection.get()
+    if force and knowledge.count() > 0:
+        existing = knowledge.get()
         if existing["ids"]:
-            collection.delete(ids=existing["ids"])
+            knowledge.delete(ids=existing["ids"])
 
     ids, documents, metadatas = [], [], []
     for entry in entries:
@@ -66,49 +75,85 @@ def seed_knowledge(force: bool = False) -> int:
             }
         )
 
-    collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
+    knowledge.upsert(ids=ids, documents=documents, metadatas=metadatas)
     return len(ids)
 
 
-def retrieve_context(query: str, distortion: str = "None", top_k: int = 2) -> dict:
-    """Retrieve the most relevant CBT script for grounding Gemini responses."""
+def add_to_history(user_id: str, session_id: str, text: str, distortion: str = "None"):
+    """Store user interaction for future RAG retrieval (innovation claim)."""
     try:
-        collection = _get_collection()
-        if collection.count() == 0:
+        _, history = _get_collections()
+        doc_id = f"{session_id}_{os.urandom(4).hex()}"
+        history.add(
+            ids=[doc_id],
+            documents=[text],
+            metadatas=[{
+                "user_id": user_id,
+                "session_id": session_id,
+                "distortion": distortion,
+                "type": "user_input"
+            }]
+        )
+    except Exception as e:
+        print(f"Error saving to RAG history: {e}")
+
+
+def retrieve_context(query: str, distortion: str = "None", user_id: str = None, top_k: int = 2) -> dict:
+    """Retrieve relevant CBT scripts AND past user history for grounding Gemini."""
+    try:
+        knowledge, history = _get_collections()
+        if knowledge.count() == 0:
             seed_knowledge()
 
+        # 1. Retrieve from Knowledge Base (CBT Scripts)
         where_filter = None
         if distortion and distortion not in {"None", "Crisis", "Emotional Masking"}:
             where_filter = {"distortion": distortion}
 
-        results = collection.query(
+        results = knowledge.query(
             query_texts=[query],
             n_results=top_k,
             where=where_filter if where_filter else None,
         )
 
         if not results["documents"] or not results["documents"][0]:
-            results = collection.query(query_texts=[query], n_results=top_k)
+            results = knowledge.query(query_texts=[query], n_results=top_k)
 
         docs = results["documents"][0] if results["documents"] else []
         metas = results["metadatas"][0] if results["metadatas"] else []
         ids = results["ids"][0] if results["ids"] else []
 
-        combined = "\n\n".join(docs) if docs else ""
+        # 2. Retrieve from User History (Long-term Context)
+        history_docs = []
+        if user_id:
+            h_results = history.query(
+                query_texts=[query],
+                n_results=1,
+                where={"user_id": user_id}
+            )
+            if h_results["documents"] and h_results["documents"][0]:
+                history_docs = h_results["documents"][0]
+
+        # Combine Knowledge + History
+        context_parts = []
+        if docs:
+            context_parts.append("RELEVANT CBT KNOWLEDGE:\n" + "\n\n".join(docs))
+        if history_docs:
+            context_parts.append("PAST USER CONTEXT:\n" + "\n\n".join(history_docs))
+
+        combined = "\n\n---\n\n".join(context_parts)
         source_id = ids[0] if ids else "none"
         technique = metas[0].get("technique", "Supportive Listening") if metas else "Supportive Listening"
 
         return {
-            "content": combined,
+            "context": combined,
             "source_id": source_id,
             "technique": technique,
-            "source_ids": ids,
         }
     except Exception as exc:
+        print(f"RAG retrieval error: {exc}")
         return {
-            "content": "",
-            "source_id": "error",
+            "context": "",
+            "source_id": "none",
             "technique": "Supportive Listening",
-            "source_ids": [],
-            "error": str(exc),
         }

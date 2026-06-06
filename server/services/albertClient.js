@@ -63,14 +63,14 @@ async function analyzeDistortion(text) {
   }
 }
 
-async function retrieveRagContext(query, distortion) {
+async function retrieveRagContext(query, distortion, userId = null) {
   if (!isAlbertAvailable()) {
-    return { content: '', source_id: 'none', technique: 'Supportive Listening', source_ids: [] };
+    return { context: '', source_id: 'none', technique: 'Supportive Listening' };
   }
   try {
     const { data } = await axios.post(
       `${ALBERT_URL}/rag/retrieve`,
-      { query, distortion },
+      { query, distortion, user_id: userId },
       { timeout: 10000 }
     );
     if (albertInCooldown) {
@@ -81,7 +81,20 @@ async function retrieveRagContext(query, distortion) {
   } catch (error) {
     console.warn('RAG retrieval unavailable:', error.message);
     markAlbertUnavailable(error);
-    return { content: '', source_id: 'none', technique: 'Supportive Listening', source_ids: [] };
+    return { context: '', source_id: 'none', technique: 'Supportive Listening' };
+  }
+}
+
+async function addToRagHistory(userId, sessionId, text, distortion = 'None') {
+  if (!isAlbertAvailable()) return;
+  try {
+    await axios.post(
+      `${ALBERT_URL}/rag/add`,
+      { user_id: userId, session_id: sessionId, text, distortion },
+      { timeout: 5000 }
+    );
+  } catch (error) {
+    console.warn('Failed to add to RAG history:', error.message);
   }
 }
 
