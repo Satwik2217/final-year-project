@@ -8,11 +8,19 @@ const authRoutes = require('./routes/auth');
 const sessionRoutes = require('./routes/sessions');
 const analyticsRoutes = require('./routes/analytics');
 
+const path = require('path');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
+const isDev = process.env.NODE_ENV !== 'production';
 
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '15mb' }));
+
+if (!isDev) {
+  const clientDist = path.resolve(__dirname, '..', 'client', 'dist');
+  app.use(express.static(clientDist));
+}
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'online', service: 'NeuroWell API', port: PORT });
@@ -21,6 +29,13 @@ app.get('/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/sessions', sessionRoutes);
 app.use('/api/analytics', analyticsRoutes);
+
+if (!isDev) {
+  const clientDist = path.resolve(__dirname, '..', 'client', 'dist');
+  app.get('*', (_req, res) => {
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 app.use((err, _req, res, _next) => {
   console.error('Unhandled error:', err);

@@ -24,6 +24,8 @@ export default function Dashboard() {
   const [emotionTrend, setEmotionTrend] = useState([]);
   const [crisisOpen, setCrisisOpen] = useState(false);
   const [error, setError] = useState('');
+  const [mobileSidebar, setMobileSidebar] = useState(false);
+  const [mobilePanel, setMobilePanel] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const latestFrameRef = useRef(null);
@@ -283,7 +285,8 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-      <aside className="sidebar">
+      {mobileSidebar && <div className="drawer-overlay" onClick={() => setMobileSidebar(false)} />}
+      <aside className={`sidebar ${mobileSidebar ? 'open' : ''}`}>
         <h2>NeuroWell</h2>
         <p style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>Hi, {user?.name?.split(' ')[0] || 'there'}</p>
         <button
@@ -311,7 +314,8 @@ export default function Dashboard() {
 
       <main className="chat-area">
         <div className="chat-header">
-          <div>
+          <button className="mobile-nav-btn" onClick={() => setMobileSidebar(true)} aria-label="Sessions">☰</button>
+          <div style={{ flex: 1 }}>
             <strong>Chat</strong>
             {initLoading && <span style={{ marginLeft: 8, color: 'var(--muted)', fontSize: '0.85rem' }}>Starting session…</span>}
             {!initLoading && sessionReady && (
@@ -336,6 +340,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
+          <button className="mobile-nav-btn" onClick={() => setMobilePanel(true)} aria-label="Tools">⚙</button>
         </div>
 
         {error && <div className="error-banner" style={{ margin: '0.5rem 1.5rem' }}>{error}</div>}
@@ -373,7 +378,8 @@ export default function Dashboard() {
         </form>
       </main>
 
-      <aside className="right-panel">
+      {mobilePanel && <div className="drawer-overlay" onClick={() => setMobilePanel(false)} />}
+      <aside className={`right-panel ${mobilePanel ? 'open' : ''}`}>
         <label className="consent-toggle">
           <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
           I consent to webcam emotion analysis
