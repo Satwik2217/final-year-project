@@ -20,8 +20,8 @@ services:
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
       - key: DEEPFACE_API_URL
-        value: http://localhost:5001
+        value: https://neurowell-deepface.hf.space
       - key: ALBERT_API_URL
-        value: http://localhost:5002
+        value: https://neurowell-albert.hf.space
       - key: HF_TOKEN
         sync: false
