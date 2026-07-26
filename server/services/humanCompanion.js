@@ -242,6 +242,7 @@ async function buildHumanResponse(contextPayload) {
     contradiction,
     ragContext,
     conversationMessages = [],
+    allSessions,
   } = contextPayload;
 
   const text = userText.trim();
@@ -302,6 +303,24 @@ async function buildHumanResponse(contextPayload) {
 
   const meta = answerMetaQuestion(text, userName, avoid, recentAi);
   if (meta) return humanizeReply(meta);
+
+  // Cross-session queries — user asking about their past sessions
+  if (allSessions?.length > 0 && /(past|previous|earlier|old|other|another|last|before|earlier session|my sessions|what did we|what did i|what happened)/i.test(lower)) {
+    const matching = allSessions.filter(s => {
+      const title = (s.title || '').toLowerCase();
+      const topic = (s.firstTopic || '').toLowerCase();
+      const words = lower.split(/\s+/).filter(w => w.length > 3);
+      return words.some(w => title.includes(w) || topic.includes(w));
+    });
+    const target = matching.length > 0 ? matching : allSessions;
+    const session = target[0];
+    if (session) {
+      const topicLine = session.firstTopic ? ` You started with: "${session.firstTopic}".` : '';
+      return humanizeReply(
+        `From your past session "${session.title}" — ${session.messageCount} messages, mood was ${session.lastEmotion}.${topicLine} ${session.lastMessages?.length ? `The last exchange was: ${session.lastMessages.join(' — ')}.` : ''} Want me to pull up more details from that one?`
+      );
+    }
+  }
 
   // Factual questions always get real answers first — even mid emotional conversation
   if (isFactualQuestion(text)) {

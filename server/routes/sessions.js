@@ -19,8 +19,7 @@ async function loadSessionForUser(sessionId, userId) {
   return session;
 }
 
-function buildResponseContext(text, req, analysis, conversationMessages) {
-  // Calculate emotion trend for narrative payoff
+function buildResponseContext(text, req, analysis, conversationMessages, allSessionsContext) {
   let emotionTrend = 'Stable';
   if (analysis.sessionHistory && analysis.sessionHistory.length > 0) {
     const recentEmotions = analysis.sessionHistory.slice(0, 3).map(h => h.textEmotion);
@@ -45,6 +44,7 @@ function buildResponseContext(text, req, analysis, conversationMessages) {
     sessionHistory: analysis.sessionHistory,
     conversationMessages,
     emotionTrend,
+    allSessions: allSessionsContext,
   };
 }
 
@@ -81,6 +81,50 @@ async function buildAnalysis({ text, imageBase64, userId }) {
 }
 
 router.use(authMiddleware);
+
+async function buildAllSessionsContext(userId) {
+  const sessions = await Session.find({ userId }).sort({ updatedAt: -1 }).limit(10).lean();
+  const summaries = await Promise.all(
+    sessions.map(async (s) => {
+      const msgCount = await Message.countDocuments({ sessionId: s._id });
+      const firstMsg = await Message.findOne({ sessionId: s._id, sender: 'user' }).sort({ createdAt: 1 }).lean();
+      const lastMsgs = await Message.find({ sessionId: s._id })
+        .sort({ createdAt: -1 })
+        .limit(2)
+        .lean();
+      return {
+        _id: s._id,
+        title: s.title,
+        messageCount: msgCount,
+        firstTopic: firstMsg?.text?.slice(0, 120) || null,
+        lastMessages: lastMsgs.reverse().map((m) => `${m.sender}: ${m.text.slice(0, 200)}`),
+        lastEmotion: s.lastEmotion,
+        createdAt: s.createdAt,
+      };
+    })
+  );
+  return summaries.filter((s) => s.messageCount > 0);
+}
+
+router.get('/all-context', async (req, res) => {
+  try {
+    const context = await buildAllSessionsContext(req.user.id);
+    res.json({ sessions: context });
+  } catch (error) {
+    res.status(500).json({ message: 'Could not load context' });
+  }
+});
+
+router.get('/:id/details', async (req, res) => {
+  try {
+    const session = await loadSessionForUser(req.params.id, req.user.id);
+    const messages = await Message.find({ sessionId: session._id }).sort({ createdAt: 1 }).lean();
+    res.json({ session, messages });
+  } catch (error) {
+    const status = error.status || 500;
+    res.status(status).json({ message: error.message || 'Could not load session details' });
+  }
+});
 
 router.get('/', async (req, res) => {
   try {
@@ -179,8 +223,9 @@ router.post('/:id/messages', async (req, res) => {
       analysis.contradiction.contradictionDetected
     );
 
+    const allSessionsContext = await buildAllSessionsContext(req.user.id);
     let botResponse;
-    const responseContext = buildResponseContext(text, req, analysis, conversationMessages);
+    const responseContext = buildResponseContext(text, req, analysis, conversationMessages, allSessionsContext);
     try {
       if (isGeminiAvailable()) {
         botResponse = await generateGeminiResponse(responseContext);
@@ -349,8 +394,9 @@ router.post('/:id/messages/stream', async (req, res) => {
       },
     });
 
+    const allSessionsContext = await buildAllSessionsContext(req.user.id);
     let fullResponse = '';
-    const responseContext = buildResponseContext(text, req, analysis, conversationMessages);
+    const responseContext = buildResponseContext(text, req, analysis, conversationMessages, allSessionsContext);
 
     try {
       const streamSource = isGeminiAvailable()

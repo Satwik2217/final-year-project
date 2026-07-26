@@ -7,6 +7,7 @@ import CBTExerciseCard from '../components/CBTExerciseCard';
 import ContradictionAlert from '../components/ContradictionAlert';
 import MoodChart from '../components/MoodChart';
 import CrisisModal from '../components/CrisisModal';
+import SessionPreviewModal from '../components/SessionPreviewModal';
 
 export default function Dashboard() {
   const user = getStoredUser();
@@ -26,6 +27,7 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [mobileSidebar, setMobileSidebar] = useState(false);
   const [mobilePanel, setMobilePanel] = useState(false);
+  const [previewSession, setPreviewSession] = useState(null);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
   const latestFrameRef = useRef(null);
@@ -299,9 +301,28 @@ export default function Dashboard() {
           <div
             key={s._id}
             className={`session-item ${String(activeSession) === String(s._id) ? 'active' : ''}`}
-            onClick={() => setActiveSession(String(s._id))}
+            style={{ display: 'flex', alignItems: 'center', gap: 4 }}
           >
-            {s.title || 'Session'}
+            <span
+              style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', cursor: 'pointer' }}
+              onClick={() => setActiveSession(String(s._id))}
+            >
+              {s.title || 'Session'}
+            </span>
+            <button
+              onClick={() => setPreviewSession(s._id)}
+              style={{
+                background: 'transparent',
+                color: 'var(--muted)',
+                fontSize: '0.75rem',
+                padding: '2px 6px',
+                borderRadius: 6,
+                flexShrink: 0,
+              }}
+              title="View session details"
+            >
+              ↳
+            </button>
           </div>
         ))}
         <button
@@ -406,6 +427,9 @@ export default function Dashboard() {
       </aside>
 
       <CrisisModal open={crisisOpen} onClose={() => setCrisisOpen(false)} />
+      {previewSession && (
+        <SessionPreviewModal sessionId={previewSession} onClose={() => setPreviewSession(null)} />
+      )}
     </div>
   );
 }

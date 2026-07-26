@@ -68,6 +68,7 @@ function buildGeminiContext({
   sessionHistory,
   conversationMessages,
   emotionTrend,
+  allSessions,
 }) {
   const lines = [`User message: ${userText}`];
 
@@ -98,6 +99,15 @@ function buildGeminiContext({
       .map((s) => s.emotionSummary || `${s.textEmotion || 'unknown'} / ${s.cognitiveDistortion || 'None'}`)
       .filter(Boolean);
     if (summaries.length) lines.push(`Recent session memory (last 5): ${summaries.join(' | ')}`);
+  }
+
+  if (allSessions?.length) {
+    const parts = allSessions.slice(0, 8).map((s, i) => {
+      const topic = s.firstTopic ? ` — first topic: "${s.firstTopic}"` : '';
+      const last = s.lastMessages?.length ? `\n    Recent: ${s.lastMessages.join(' | ')}` : '';
+      return `    [${i + 1}] "${s.title}" (${s.messageCount} msgs, mood: ${s.lastEmotion})${topic}${last}`;
+    });
+    lines.push(`All past sessions (cross-session memory, for context about any past conversation):\n${parts.join('\n')}`);
   }
 
   if (conversationMessages?.length) {
