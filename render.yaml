@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: neurowell
+    runtime: node
+    repo: https://github.com/Satwik2217/final-year-project.git
+    branch: main
+    buildCommand: npm install --prefix client && npm install --prefix server && npm run build
+    startCommand: npm start --prefix server
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "10000"
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: DEEPFACE_API_URL
+        value: http://localhost:5001
+      - key: ALBERT_API_URL
+        value: http://localhost:5002
+      - key: HF_TOKEN
+        sync: false
